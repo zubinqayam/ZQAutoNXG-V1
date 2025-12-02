@@ -124,9 +124,9 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
-            ghcr.io/${{ github.repository }}:gv2-novabase
+            ghcr.io/${{ toLower(github.repository) }}:latest
+            ghcr.io/${{ toLower(github.repository) }}:${{ github.sha }}
+            ghcr.io/${{ toLower(github.repository) }}:gv2-novabase
           labels: |
             org.opencontainers.image.title=ZQAutoNXG
             org.opencontainers.image.description=Next-Generation eXtended Automation Platform - Powered by ZQ AI LOGIC™
@@ -144,7 +144,7 @@ jobs:
           echo "🧪 Testing ZQAutoNXG container health..."
           docker run --rm -d --name zqautonxg-test \
             -p 8080:8000 \
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
+            ghcr.io/${{ toLower(github.repository) }}:${{ github.sha }}
           
           # Wait for startup
           sleep 10
@@ -203,7 +203,7 @@ jobs:
           # Pull and run ZQAutoNXG
           docker run -d --name zqautonxg \
             -p 8000:8000 \
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            ghcr.io/${{ toLower(github.repository) }}:${{ github.ref_name }}
           
           # Verify health
           curl http://localhost:8000/health
@@ -313,6 +313,6 @@ jobs:
           echo "   Copyright © 2025 Zubin Qayam"
           echo ""
           echo "🔗 Access your deployment:"
-          echo "   • Container: ghcr.io/${{ github.repository }}:latest"
+          echo "   • Container: ghcr.io/${{ toLower(github.repository) }}:latest"
           echo "   • Repository: https://github.com/${{ github.repository }}"
           echo "   • Documentation: https://github.com/${{ github.repository }}/blob/main/README.md"
