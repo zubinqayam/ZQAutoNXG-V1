@@ -1,0 +1,30 @@
+node_modules/
+dist/
+__pycache__/
+*.db
+.env
+.DS_Store
+.vscode/
+.idea/
+*.log
+
+# Backend
+backend/__pycache__/
+backend/zqautonxg/__pycache__/
+backend/zqautonxg/routers/__pycache__/
+backend/.pytest_cache/
+backend/data/*.db
+backend/.env
+backend/test.db
+backend/tests/test_api.py
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.eslintrc.cjs
+frontend/tsconfig.tsbuildinfo
+# We keep package-lock.json usually, but the previous instruction said to keep it in git.
+# If we want to ignore it locally but keep in git, that's different.
+# The user instruction was: "Remove transient deps: rm -rf frontend/node_modules (but keep package-lock.json in git)."
+# So package-lock.json should NOT be in .gitignore if we want to track it.
+# The previous .gitignore had it. I will remove it from ignore based on standard practice and the instruction "commit package.json and package-lock.json".
