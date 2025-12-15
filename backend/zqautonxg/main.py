@@ -10,6 +10,12 @@ import logging
 import os
 import time
 
+from .database import engine, Base
+from .routers import flows, runs, connections
+
+# Create tables
+Base.metadata.create_all(bind=engine)
+
 # ZQAutoNXG Configuration
 APP_NAME = os.getenv("APP_NAME", "ZQAutoNXG")
 APP_VERSION = "6.0.0"
@@ -41,11 +47,16 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080").split(","),
+    allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080,http://localhost:1420").split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include Routers
+app.include_router(flows.router)
+app.include_router(runs.router)
+app.include_router(connections.router)
 
 # Prometheus metrics
 REQUEST_COUNT = Counter('zqautonxg_requests_total', 'Total requests', ['method', 'endpoint'])
