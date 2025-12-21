@@ -77,8 +77,11 @@ def root():
     }
 
 @app.get("/health")
-def health():
-    """Health check endpoint"""
+async def health():
+    """
+    Health check endpoint
+    Optimized: async def avoids threadpool overhead for non-blocking operations
+    """
     HEALTH_CHECKS.inc()
     return {
         "status": "healthy",
@@ -90,14 +93,20 @@ def health():
     }
 
 @app.get("/metrics")
-def metrics():
-    """Prometheus metrics endpoint"""
+async def metrics():
+    """
+    Prometheus metrics endpoint
+    Optimized: async def avoids threadpool overhead
+    """
     data = generate_latest()
     return Response(content=data, media_type=CONTENT_TYPE_LATEST)
 
 @app.get("/status") 
-def status():
-    """Detailed status information"""
+async def status():
+    """
+    Detailed status information
+    Optimized: async def avoids threadpool overhead
+    """
     return {
         "platform": APP_NAME,
         "version": APP_VERSION,
@@ -119,8 +128,11 @@ def status():
     }
 
 @app.get("/version")
-def version():
-    """Version information"""
+async def version():
+    """
+    Version information
+    Optimized: async def avoids threadpool overhead
+    """
     return {
         "platform": APP_NAME,
         "version": APP_VERSION,
