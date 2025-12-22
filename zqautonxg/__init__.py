@@ -21,7 +21,7 @@ __email__ = "zubin.qayam@outlook.com"
 
 __all__ = [
     "__title__",
-    "__version__", 
+    "__version__",
     "__architecture__",
     "__brand__",
     "__description__",
@@ -33,6 +33,7 @@ __all__ = [
 
 # Version validation
 import sys
+
 if sys.version_info < (3, 11):
     raise RuntimeError(
         f"ZQAutoNXG requires Python 3.11+. "
@@ -41,6 +42,7 @@ if sys.version_info < (3, 11):
 
 # Initialize logging
 import logging
+
 logging.getLogger("zqautonxg").addHandler(logging.NullHandler())
 
 # ZQAutoNXG startup banner
