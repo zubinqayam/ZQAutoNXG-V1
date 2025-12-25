@@ -52,7 +52,7 @@ REQUEST_COUNT = Counter('zqautonxg_requests_total', 'Total requests', ['method',
 HEALTH_CHECKS = Counter('zqautonxg_health_checks_total', 'Health check requests')
 
 @app.get("/")
-def root():
+async def root():
     """Root endpoint with ZQAutoNXG information"""
     REQUEST_COUNT.labels(method="GET", endpoint="root").inc()
     logger.info("Root endpoint accessed")
@@ -77,7 +77,7 @@ def root():
     }
 
 @app.get("/health")
-def health():
+async def health():
     """Health check endpoint"""
     HEALTH_CHECKS.inc()
     return {
@@ -90,13 +90,13 @@ def health():
     }
 
 @app.get("/metrics")
-def metrics():
+async def metrics():
     """Prometheus metrics endpoint"""
     data = generate_latest()
     return Response(content=data, media_type=CONTENT_TYPE_LATEST)
 
 @app.get("/status") 
-def status():
+async def status():
     """Detailed status information"""
     return {
         "platform": APP_NAME,
@@ -119,7 +119,7 @@ def status():
     }
 
 @app.get("/version")
-def version():
+async def version():
     """Version information"""
     return {
         "platform": APP_NAME,
