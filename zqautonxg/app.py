@@ -90,7 +90,7 @@ async def health():
     }
 
 @app.get("/metrics")
-async def metrics():
+def metrics():
     """Prometheus metrics endpoint"""
     data = generate_latest()
     return Response(content=data, media_type=CONTENT_TYPE_LATEST)
