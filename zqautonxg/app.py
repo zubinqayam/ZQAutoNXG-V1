@@ -2,13 +2,14 @@
 # Copyright © 2025 Zubin Qayam — ZQAutoNXG Powered by ZQ AI LOGIC
 # Licensed under the Apache License, Version 2.0
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
-from starlette.responses import Response
 import logging
 import os
 import time
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, generate_latest
+from starlette.responses import Response
 
 # ZQAutoNXG Configuration
 APP_NAME = os.getenv("APP_NAME", "ZQAutoNXG")
@@ -52,15 +53,15 @@ REQUEST_COUNT = Counter('zqautonxg_requests_total', 'Total requests', ['method',
 HEALTH_CHECKS = Counter('zqautonxg_health_checks_total', 'Health check requests')
 
 @app.get("/")
-def root():
+async def root():
     """Root endpoint with ZQAutoNXG information"""
     REQUEST_COUNT.labels(method="GET", endpoint="root").inc()
     logger.info("Root endpoint accessed")
-    
+
     return {
         "platform": APP_NAME,
         "version": APP_VERSION,
-        "architecture": "G V2 NovaBase", 
+        "architecture": "G V2 NovaBase",
         "brand": APP_BRAND,
         "description": APP_DESCRIPTION,
         "status": "operational",
@@ -77,7 +78,7 @@ def root():
     }
 
 @app.get("/health")
-def health():
+async def health():
     """Health check endpoint"""
     HEALTH_CHECKS.inc()
     return {
@@ -95,8 +96,8 @@ def metrics():
     data = generate_latest()
     return Response(content=data, media_type=CONTENT_TYPE_LATEST)
 
-@app.get("/status") 
-def status():
+@app.get("/status")
+async def status():
     """Detailed status information"""
     return {
         "platform": APP_NAME,
@@ -105,7 +106,7 @@ def status():
         "license": "Apache License 2.0",
         "components": {
             "telemetry_mesh": "ready",
-            "composer_agent": "ready", 
+            "composer_agent": "ready",
             "vault_mesh": "ready",
             "policy_engine": "ready",
             "meta_learner": "ready",
@@ -119,7 +120,7 @@ def status():
     }
 
 @app.get("/version")
-def version():
+async def version():
     """Version information"""
     return {
         "platform": APP_NAME,
