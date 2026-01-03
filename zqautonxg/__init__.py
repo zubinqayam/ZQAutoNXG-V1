@@ -44,7 +44,7 @@ import logging
 logging.getLogger("zqautonxg").addHandler(logging.NullHandler())
 
 # ZQAutoNXG startup banner
-def _startup_banner():
+def _startup_banner() -> None:
     """Display ZQAutoNXG startup information"""
     banner = f"""
     ╔══════════════════════════════════════════════════════════════╗

@@ -5,6 +5,7 @@
 import logging
 import os
 import time
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -58,33 +59,72 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 REQUEST_COUNT = Counter('zqautonxg_requests_total', 'Total requests', ['method', 'endpoint'])
 HEALTH_CHECKS = Counter('zqautonxg_health_checks_total', 'Health check requests')
 
-@app.get("/")
-async def root():
-    """Root endpoint with ZQAutoNXG information"""
-    REQUEST_COUNT.labels(method="GET", endpoint="root").inc()
-    logger.info("Root endpoint accessed")
+# Pre-initialized counters to avoid label lookup overhead
+ROOT_REQUEST_COUNTER = REQUEST_COUNT.labels(method="GET", endpoint="root")
 
-    return {
-        "platform": APP_NAME,
-        "version": APP_VERSION,
-        "architecture": "G V2 NovaBase",
-        "brand": APP_BRAND,
-        "description": APP_DESCRIPTION,
-        "status": "operational",
-        "timestamp": time.time(),
-        "license": "Apache License 2.0",
-        "copyright": "© 2025 Zubin Qayam — ZQAutoNXG",
-        "capabilities": [
-            "AI-Powered Automation",
-            "Extended Reality Integration",
-            "Global-Scale Orchestration",
-            "Next-Generation Algorithms",
-            "Proprietary ZQ AI LOGIC™"
-        ]
+# Pre-computed response templates
+ROOT_RESPONSE_TEMPLATE: dict[str, Any] = {
+    "platform": APP_NAME,
+    "version": APP_VERSION,
+    "architecture": "G V2 NovaBase",
+    "brand": APP_BRAND,
+    "description": APP_DESCRIPTION,
+    "status": "operational",
+    "license": "Apache License 2.0",
+    "copyright": "© 2025 Zubin Qayam — ZQAutoNXG",
+    "capabilities": [
+        "AI-Powered Automation",
+        "Extended Reality Integration",
+        "Global-Scale Orchestration",
+        "Next-Generation Algorithms",
+        "Proprietary ZQ AI LOGIC™"
+    ]
+}
+
+STATUS_RESPONSE: dict[str, Any] = {
+    "platform": APP_NAME,
+    "version": APP_VERSION,
+    "brand": APP_BRAND,
+    "license": "Apache License 2.0",
+    "components": {
+        "telemetry_mesh": "ready",
+        "composer_agent": "ready",
+        "vault_mesh": "ready",
+        "policy_engine": "ready",
+        "meta_learner": "ready",
+        "rca_engine": "ready"
+    },
+    "integrations": {
+        "zq_ai_logic": "configured",
+        "prometheus": "active",
+        "docker": "containerized"
     }
+}
+
+VERSION_RESPONSE: dict[str, Any] = {
+    "platform": APP_NAME,
+    "version": APP_VERSION,
+    "architecture": "G V2 NovaBase",
+    "brand": APP_BRAND,
+    "license": "Apache License 2.0",
+    "build_date": "2025-10-14",
+    "git_commit": os.getenv("GIT_COMMIT", "unknown")
+}
+
+@app.get("/")
+async def root() -> dict[str, Any]:
+    """Root endpoint with ZQAutoNXG information"""
+    # Optimization: Use pre-initialized counter
+    ROOT_REQUEST_COUNTER.inc()
+    # Removed blocking logger.info call for performance
+
+    # Optimization: Use pre-computed template
+    response = ROOT_RESPONSE_TEMPLATE.copy()
+    response["timestamp"] = time.time()
+    return response
 
 @app.get("/health")
-async def health():
+async def health() -> dict[str, Any]:
     """Health check endpoint"""
     HEALTH_CHECKS.inc()
     return {
@@ -97,46 +137,22 @@ async def health():
     }
 
 @app.get("/metrics")
-def metrics():
+def metrics() -> Response:
     """Prometheus metrics endpoint"""
     data = generate_latest()
     return Response(content=data, media_type=CONTENT_TYPE_LATEST)
 
 @app.get("/status")
-async def status():
+async def status() -> dict[str, Any]:
     """Detailed status information"""
-    return {
-        "platform": APP_NAME,
-        "version": APP_VERSION,
-        "brand": APP_BRAND,
-        "license": "Apache License 2.0",
-        "components": {
-            "telemetry_mesh": "ready",
-            "composer_agent": "ready",
-            "vault_mesh": "ready",
-            "policy_engine": "ready",
-            "meta_learner": "ready",
-            "rca_engine": "ready"
-        },
-        "integrations": {
-            "zq_ai_logic": "configured",
-            "prometheus": "active",
-            "docker": "containerized"
-        }
-    }
+    # Optimization: Return pre-computed static response
+    return STATUS_RESPONSE
 
 @app.get("/version")
-async def version():
+async def version() -> dict[str, Any]:
     """Version information"""
-    return {
-        "platform": APP_NAME,
-        "version": APP_VERSION,
-        "architecture": "G V2 NovaBase",
-        "brand": APP_BRAND,
-        "license": "Apache License 2.0",
-        "build_date": "2025-10-14",
-        "git_commit": os.getenv("GIT_COMMIT", "unknown")
-    }
+    # Optimization: Return pre-computed static response
+    return VERSION_RESPONSE
 
 if __name__ == "__main__":
     import uvicorn
