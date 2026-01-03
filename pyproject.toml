@@ -55,7 +55,7 @@ Changelog = "https://github.com/zubinqayam/ZQAutoNXG-V1/releases"
 zqautonxg = "zqautonxg.app:main"
 
 [tool.setuptools]
-packages = ["zqautonxg"]
+packages = {find = {where = ["."], exclude = ["tests*"]}}  # Dynamic package discovery
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
