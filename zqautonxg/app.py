@@ -59,7 +59,7 @@ REQUEST_COUNT = Counter('zqautonxg_requests_total', 'Total requests', ['method',
 HEALTH_CHECKS = Counter('zqautonxg_health_checks_total', 'Health check requests')
 
 @app.get("/")
-async def root() -> dict:
+async def root():
     """Root endpoint with ZQAutoNXG information"""
     REQUEST_COUNT.labels(method="GET", endpoint="root").inc()
     logger.info("Root endpoint accessed")
@@ -84,7 +84,7 @@ async def root() -> dict:
     }
 
 @app.get("/health")
-async def health() -> dict:
+async def health():
     """Health check endpoint"""
     HEALTH_CHECKS.inc()
     return {
@@ -97,21 +97,13 @@ async def health() -> dict:
     }
 
 @app.get("/metrics")
-async def metrics() -> Response:
-    """
-    Prometheus metrics endpoint.
-
-    PERFORMANCE NOTE:
-    Converted to `async def` to run directly on the event loop, avoiding the overhead
-    of threadpool dispatch for this memory-bound operation. While generate_latest()
-    is synchronous, it is typically fast enough to not block the loop significantly
-    relative to the cost of context switching.
-    """
+def metrics():
+    """Prometheus metrics endpoint"""
     data = generate_latest()
     return Response(content=data, media_type=CONTENT_TYPE_LATEST)
 
 @app.get("/status")
-async def status() -> dict:
+async def status():
     """Detailed status information"""
     return {
         "platform": APP_NAME,
@@ -134,7 +126,7 @@ async def status() -> dict:
     }
 
 @app.get("/version")
-async def version() -> dict:
+async def version():
     """Version information"""
     return {
         "platform": APP_NAME,
