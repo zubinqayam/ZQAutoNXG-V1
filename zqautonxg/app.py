@@ -58,30 +58,38 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 REQUEST_COUNT = Counter('zqautonxg_requests_total', 'Total requests', ['method', 'endpoint'])
 HEALTH_CHECKS = Counter('zqautonxg_health_checks_total', 'Health check requests')
 
+# Performance: Pre-compute static response templates and metrics to avoid overhead in hot paths
+ROOT_RESPONSE_TEMPLATE = {
+    "platform": APP_NAME,
+    "version": APP_VERSION,
+    "architecture": "G V2 NovaBase",
+    "brand": APP_BRAND,
+    "description": APP_DESCRIPTION,
+    "status": "operational",
+    "license": "Apache License 2.0",
+    "copyright": "© 2025 Zubin Qayam — ZQAutoNXG",
+    "capabilities": [
+        "AI-Powered Automation",
+        "Extended Reality Integration",
+        "Global-Scale Orchestration",
+        "Next-Generation Algorithms",
+        "Proprietary ZQ AI LOGIC™"
+    ]
+}
+
+# Pre-initialize metrics labels to avoid lookup overhead
+ROOT_REQUEST_METRIC = REQUEST_COUNT.labels(method="GET", endpoint="root")
+
 @app.get("/")
 async def root() -> dict:
     """Root endpoint with ZQAutoNXG information"""
-    REQUEST_COUNT.labels(method="GET", endpoint="root").inc()
-    logger.info("Root endpoint accessed")
+    ROOT_REQUEST_METRIC.inc()
+    # Performance: Logging in hot path is blocking and expensive
+    # logger.info("Root endpoint accessed")
 
-    return {
-        "platform": APP_NAME,
-        "version": APP_VERSION,
-        "architecture": "G V2 NovaBase",
-        "brand": APP_BRAND,
-        "description": APP_DESCRIPTION,
-        "status": "operational",
-        "timestamp": time.time(),
-        "license": "Apache License 2.0",
-        "copyright": "© 2025 Zubin Qayam — ZQAutoNXG",
-        "capabilities": [
-            "AI-Powered Automation",
-            "Extended Reality Integration",
-            "Global-Scale Orchestration",
-            "Next-Generation Algorithms",
-            "Proprietary ZQ AI LOGIC™"
-        ]
-    }
+    # Use pre-computed template and merge dynamic timestamp
+    # Dictionary unpacking is faster than .copy() + assignment for this case
+    return {**ROOT_RESPONSE_TEMPLATE, "timestamp": time.time()}
 
 @app.get("/health")
 async def health() -> dict:
