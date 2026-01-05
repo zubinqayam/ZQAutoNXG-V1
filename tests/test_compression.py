@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
+
 from zqautonxg.app import app
+
 
 def test_gzip_compression_enabled():
     """
