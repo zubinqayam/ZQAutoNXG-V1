@@ -9,6 +9,9 @@ Copyright © 2025 Zubin Qayam — All Rights Reserved
 Licensed under the Apache License, Version 2.0
 """
 
+import logging
+import sys
+
 __title__ = "ZQAutoNXG"
 __version__ = "6.0.0"
 __architecture__ = "G V2 NovaBase"
@@ -21,7 +24,7 @@ __email__ = "zubin.qayam@outlook.com"
 
 __all__ = [
     "__title__",
-    "__version__", 
+    "__version__",
     "__architecture__",
     "__brand__",
     "__description__",
@@ -32,19 +35,12 @@ __all__ = [
 ]
 
 # Version validation
-import sys
-if sys.version_info < (3, 11):
-    raise RuntimeError(
-        f"ZQAutoNXG requires Python 3.11+. "
-        f"Current version: {sys.version}"
-    )
 
 # Initialize logging
-import logging
 logging.getLogger("zqautonxg").addHandler(logging.NullHandler())
 
 # ZQAutoNXG startup banner
-def _startup_banner():
+def _startup_banner() -> None:
     """Display ZQAutoNXG startup information"""
     banner = f"""
     ╔══════════════════════════════════════════════════════════════╗
