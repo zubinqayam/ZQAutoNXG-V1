@@ -8,6 +8,8 @@ import time
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Any, Dict
+
 from fastapi.middleware.gzip import GZipMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, generate_latest
 from starlette.responses import Response
@@ -58,30 +60,39 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 REQUEST_COUNT = Counter('zqautonxg_requests_total', 'Total requests', ['method', 'endpoint'])
 HEALTH_CHECKS = Counter('zqautonxg_health_checks_total', 'Health check requests')
 
+# Pre-computed static response for root endpoint
+ROOT_RESPONSE_TEMPLATE: Dict[str, Any] = {
+    "platform": APP_NAME,
+    "version": APP_VERSION,
+    "architecture": "G V2 NovaBase",
+    "brand": APP_BRAND,
+    "description": APP_DESCRIPTION,
+    "status": "operational",
+    "license": "Apache License 2.0",
+    "copyright": "© 2025 Zubin Qayam — ZQAutoNXG",
+    "capabilities": (
+        "AI-Powered Automation",
+        "Extended Reality Integration",
+        "Global-Scale Orchestration",
+        "Next-Generation Algorithms",
+        "Proprietary ZQ AI LOGIC™"
+    )
+}
+
+# Pre-initialized metric label for root endpoint
+ROOT_REQUEST_METRIC = REQUEST_COUNT.labels(method="GET", endpoint="root")
+
 @app.get("/")
 async def root() -> dict:
     """Root endpoint with ZQAutoNXG information"""
-    REQUEST_COUNT.labels(method="GET", endpoint="root").inc()
+    ROOT_REQUEST_METRIC.inc()
     logger.info("Root endpoint accessed")
 
-    return {
-        "platform": APP_NAME,
-        "version": APP_VERSION,
-        "architecture": "G V2 NovaBase",
-        "brand": APP_BRAND,
-        "description": APP_DESCRIPTION,
-        "status": "operational",
-        "timestamp": time.time(),
-        "license": "Apache License 2.0",
-        "copyright": "© 2025 Zubin Qayam — ZQAutoNXG",
-        "capabilities": [
-            "AI-Powered Automation",
-            "Extended Reality Integration",
-            "Global-Scale Orchestration",
-            "Next-Generation Algorithms",
-            "Proprietary ZQ AI LOGIC™"
-        ]
-    }
+    # Use a shallow copy of the template to avoid re-creating the dictionary structure
+    # This is significantly faster than defining the dict literal on every request
+    response = ROOT_RESPONSE_TEMPLATE.copy()
+    response["timestamp"] = time.time()
+    return response
 
 @app.get("/health")
 async def health() -> dict:
