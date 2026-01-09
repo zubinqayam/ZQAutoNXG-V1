@@ -5,6 +5,7 @@
 import logging
 import os
 import time
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -58,43 +59,54 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 REQUEST_COUNT = Counter('zqautonxg_requests_total', 'Total requests', ['method', 'endpoint'])
 HEALTH_CHECKS = Counter('zqautonxg_health_checks_total', 'Health check requests')
 
+# Pre-initialize metric labels to avoid map lookup overhead on every request
+ROOT_REQUEST_METRIC = REQUEST_COUNT.labels(method="GET", endpoint="root")
+
+# Pre-compute static response parts to avoid allocation on every request
+ROOT_RESPONSE_TEMPLATE: dict[str, Any] = {
+    "platform": APP_NAME,
+    "version": APP_VERSION,
+    "architecture": "G V2 NovaBase",
+    "brand": APP_BRAND,
+    "description": APP_DESCRIPTION,
+    "status": "operational",
+    "license": "Apache License 2.0",
+    "copyright": "© 2025 Zubin Qayam — ZQAutoNXG",
+    "capabilities": [
+        "AI-Powered Automation",
+        "Extended Reality Integration",
+        "Global-Scale Orchestration",
+        "Next-Generation Algorithms",
+        "Proprietary ZQ AI LOGIC™"
+    ]
+}
+
+HEALTH_RESPONSE_TEMPLATE: dict[str, Any] = {
+    "status": "healthy",
+    "platform": APP_NAME,
+    "version": APP_VERSION,
+    "architecture": "G V2 NovaBase",
+    "uptime": "operational"
+}
+
 @app.get("/")
 async def root() -> dict:
     """Root endpoint with ZQAutoNXG information"""
-    REQUEST_COUNT.labels(method="GET", endpoint="root").inc()
+    ROOT_REQUEST_METRIC.inc()
     logger.info("Root endpoint accessed")
 
-    return {
-        "platform": APP_NAME,
-        "version": APP_VERSION,
-        "architecture": "G V2 NovaBase",
-        "brand": APP_BRAND,
-        "description": APP_DESCRIPTION,
-        "status": "operational",
-        "timestamp": time.time(),
-        "license": "Apache License 2.0",
-        "copyright": "© 2025 Zubin Qayam — ZQAutoNXG",
-        "capabilities": [
-            "AI-Powered Automation",
-            "Extended Reality Integration",
-            "Global-Scale Orchestration",
-            "Next-Generation Algorithms",
-            "Proprietary ZQ AI LOGIC™"
-        ]
-    }
+    response = ROOT_RESPONSE_TEMPLATE.copy()
+    response["timestamp"] = time.time()
+    return response
 
 @app.get("/health")
 async def health() -> dict:
     """Health check endpoint"""
     HEALTH_CHECKS.inc()
-    return {
-        "status": "healthy",
-        "platform": APP_NAME,
-        "version": APP_VERSION,
-        "architecture": "G V2 NovaBase",
-        "timestamp": time.time(),
-        "uptime": "operational"
-    }
+
+    response = HEALTH_RESPONSE_TEMPLATE.copy()
+    response["timestamp"] = time.time()
+    return response
 
 @app.get("/metrics")
 async def metrics() -> Response:
