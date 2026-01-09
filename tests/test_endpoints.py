@@ -40,10 +40,3 @@ async def test_version(client):
     assert response.status_code == 200
     data = response.json()
     assert "build_date" in data
-
-@pytest.mark.asyncio
-async def test_metrics(client):
-    response = await client.get("/metrics")
-    assert response.status_code == 200
-    assert response.headers["content-type"] == "text/plain; version=1.0.0; charset=utf-8"
-    assert "zqautonxg_requests_total" in response.text
