@@ -348,13 +348,18 @@ async def execute_workflow(
 # Dependency injection for shared resources
 from fastapi import Depends
 
-async def get_database_session():
-    async with SessionLocal() as session:
-        yield session
+async def get_telemetry_service():
+    """Get telemetry service instance."""
+    service = TelemetryService()
+    await service.initialize()
+    try:
+        yield service
+    finally:
+        await service.cleanup()
 
 @app.get("/data")
-async def get_data(db: Session = Depends(get_database_session)):
-    return await db.query(Model).all()
+async def get_data(telemetry: TelemetryService = Depends(get_telemetry_service)):
+    return await telemetry.get_recent_events()
 ```
 
 ### Troubleshooting Guidelines
