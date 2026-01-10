@@ -30,3 +30,9 @@ htmlcov/
 
 # Mypy
 .mypy_cache/
+
+# Local Data
+data/*.db
+
+# Performance Test Results
+tests/performance/results*
