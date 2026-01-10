@@ -1,0 +1,28 @@
+{
+  "name": "zqautonxg-frontend",
+  "version": "6.0.0",
+  "description": "ZQAutoNXG - Next-Generation eXtended Automation Platform Frontend",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Development server not configured'",
+    "build": "echo 'Build not required for static HTML'",
+    "preview": "open index.html"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^1.4.0"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "zqautonxg",
+    "automation",
+    "ai",
+    "next-generation",
+    "vercel-analytics"
+  ],
+  "author": "Zubin Qayam",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
