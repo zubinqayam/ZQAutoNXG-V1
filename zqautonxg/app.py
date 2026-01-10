@@ -9,8 +9,12 @@ import time
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi import WebSocket, WebSocketDisconnect
+from fastapi.concurrency import run_in_threadpool
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, generate_latest
 from starlette.responses import Response
+import sqlite3
+from typing import Dict, Set, Any
 
 # ZQAutoNXG Configuration
 APP_NAME = os.getenv("APP_NAME", "ZQAutoNXG")
@@ -25,10 +29,62 @@ logging.basicConfig(
 )
 logger = logging.getLogger("zqautonxg")
 
+# Database Configuration
+DB_PATH = "data/tickets.db"
+os.makedirs("data", exist_ok=True)
+
+def init_db() -> None:
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS tickets (
+            id TEXT PRIMARY KEY,
+            subject TEXT,
+            status TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+# Initialize DB on startup
+# init_db() called in startup event to avoid module-level side effects
+
+# WebSocket Connection Manager
+class TicketConnectionManager:
+    def __init__(self) -> None:
+        self.active_connections: Dict[str, Set[WebSocket]] = {}
+
+    async def connect(self, ticket_id: str, websocket: WebSocket) -> None:
+        await websocket.accept()
+        if ticket_id not in self.active_connections:
+            self.active_connections[ticket_id] = set()
+        self.active_connections[ticket_id].add(websocket)
+
+    def disconnect(self, ticket_id: str, websocket: WebSocket) -> None:
+        if ticket_id in self.active_connections:
+            self.active_connections[ticket_id].discard(websocket)
+            if not self.active_connections[ticket_id]:
+                del self.active_connections[ticket_id]
+
+    async def broadcast(self, ticket_id: str, message: Dict[str, Any]) -> None:
+        if ticket_id in self.active_connections:
+            dead_connections = set()
+            for connection in self.active_connections[ticket_id]:
+                try:
+                    await connection.send_json(message)
+                except Exception:
+                    dead_connections.add(connection)
+
+            for conn in dead_connections:
+                self.disconnect(ticket_id, conn)
+
+ws_manager = TicketConnectionManager()
+
 # Create FastAPI application
 app = FastAPI(
     title=APP_NAME,
     version=APP_VERSION,
+    on_startup=[init_db],
     description=f"{APP_DESCRIPTION} - {APP_BRAND}",
     contact={
         "name": "ZQ AI LOGIC™ Support",
@@ -153,6 +209,38 @@ async def version() -> dict:
         "build_date": "2025-10-14",
         "git_commit": os.getenv("GIT_COMMIT", "unknown")
     }
+
+def _check_ticket_exists(ticket_id: str) -> bool:
+    """Synchronous DB check."""
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM tickets WHERE id = ?", (ticket_id,))
+    exists = cur.fetchone() is not None
+    conn.close()
+    return exists
+
+@app.websocket("/ws/tickets/{ticket_id}")
+async def websocket_ticket_endpoint(websocket: WebSocket, ticket_id: str) -> None:
+    """
+    WebSocket endpoint for real-time ticket updates.
+
+    PERFORMANCE NOTE:
+    Uses `run_in_threadpool` for the synchronous SQLite check to avoid blocking
+    the asyncio event loop. Direct SQLite calls in `async def` would serialize
+    requests and degrade performance.
+    """
+    # Performance: Offload blocking DB call to threadpool
+    if not await run_in_threadpool(_check_ticket_exists, ticket_id):
+        await websocket.close(code=1008, reason="Ticket not found")
+        return
+
+    await ws_manager.connect(ticket_id, websocket)
+    try:
+        while True:
+            # Keep connection alive (client may send pings)
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        ws_manager.disconnect(ticket_id, websocket)
 
 if __name__ == "__main__":
     import uvicorn
