@@ -103,6 +103,12 @@ Once running, access the interactive API documentation:
 | `/status` | GET | Detailed component status |
 | `/version` | GET | Version and build information |
 | `/metrics` | GET | Prometheus metrics |
+| `/api/v1/workflows` | GET, POST | Workflow management |
+| `/api/v1/nodes` | GET, POST | Node configuration |
+| `/api/v1/logs/ws` | WebSocket | Real-time log streaming |
+| `/api/v1/network/topology` | GET | Network topology |
+
+For complete API documentation, see [docs/API_REFERENCE.md](docs/API_REFERENCE.md)
 
 ### **Example Response**
 
@@ -141,6 +147,39 @@ pip install -r requirements.txt
 uvicorn zqautonxg.app:app --reload --log-level debug
 ```
 
+### **Running Tests**
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=zqautonxg --cov-report=html
+
+# Run specific test file
+pytest tests/test_api_workflows.py -v
+```
+
+### **Docker Compose Deployment**
+
+```bash
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f backend
+
+# Stop services
+docker-compose down
+```
+
+Services available after deployment:
+- **Backend API**: http://localhost:8000
+- **PostgreSQL**: localhost:5432
+- **Redis**: localhost:6379
+- **Prometheus**: http://localhost:9090
+- **Grafana**: http://localhost:3001 (admin/zqadmin)
+
 ### **Project Structure**
 
 ```
@@ -149,13 +188,35 @@ ZQAutoNXG-V1/
 ├── README.md                  # Project documentation
 ├── requirements.txt           # Production dependencies
 ├── Dockerfile                 # Container configuration
+├── docker-compose.yml         # Multi-service orchestration
+├── .env.example               # Environment configuration template
+├── docs/                      # Comprehensive documentation
+│   ├── API_REFERENCE.md      # Complete API documentation
+│   ├── DEPLOYMENT.md         # Deployment guide
+│   ├── ARCHITECTURE.md       # System architecture
+│   ├── CONTRIBUTING.md       # Contribution guidelines
+│   └── CHANGELOG.md          # Version history
+├── monitoring/                # Monitoring configuration
+│   ├── prometheus.yml        # Prometheus config
+│   └── grafana/              # Grafana dashboards
+├── tests/                     # Test suite
+│   ├── test_endpoints.py     # Core endpoint tests
+│   ├── test_api_workflows.py # Workflow API tests
+│   └── test_compression.py   # Middleware tests
 └── zqautonxg/                 # Main application package
     ├── __init__.py            # Package initialization
     ├── app.py                 # FastAPI application
-    ├── core/                  # Core business logic
     ├── api/                   # API endpoints
-    ├── services/              # Application services
-    └── config/                # Configuration management
+    │   └── v1/               # API version 1
+    │       ├── workflows.py  # Workflow endpoints
+    │       ├── nodes.py      # Node endpoints
+    │       ├── logs.py       # Log streaming
+    │       └── network.py    # Network topology
+    ├── models/                # Data models
+    │   ├── workflow.py       # Workflow models
+    │   └── node.py           # Node models
+    ├── services/              # Business logic (future)
+    └── utils/                 # Utility functions (future)
 ```
 
 ## 📊 **Monitoring**
@@ -168,6 +229,18 @@ ZQAutoNXG exposes Prometheus metrics at `/metrics`:
 - `zqautonxg_health_checks_total` - Health check requests
 - Standard Python and FastAPI metrics
 
+Access Prometheus at http://localhost:9090 (when using Docker Compose)
+
+### **Grafana Dashboards**
+
+Access Grafana at http://localhost:3001 (when using Docker Compose)
+
+Default credentials:
+- **Username**: admin
+- **Password**: zqadmin
+
+Pre-configured with Prometheus datasource for real-time monitoring.
+
 ### **Health Checks**
 
 Health endpoint provides comprehensive system status:
@@ -175,6 +248,8 @@ Health endpoint provides comprehensive system status:
 ```bash
 curl http://localhost:8000/health
 ```
+
+Response includes platform status, version, and component health.
 
 ## ⚙️ **Configuration**
 
@@ -241,12 +316,27 @@ Use of these trademarks requires explicit permission.
 
 ## 🤝 **Contributing**
 
-We welcome contributions! Please see our contributing guidelines and:
+We welcome contributions! Please see our [Contributing Guidelines](docs/CONTRIBUTING.md) and:
 
 1. Fork the repository
-2. Create a feature branch
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes with proper Apache 2.0 headers
-4. Submit a pull request
+4. Add tests for new functionality
+5. Run tests and ensure they pass (`pytest tests/`)
+6. Format code (`black zqautonxg/ tests/`)
+7. Commit changes (`git commit -m 'feat: add amazing feature'`)
+8. Push to branch (`git push origin feature/amazing-feature`)
+9. Submit a pull request
+
+## 📖 **Documentation**
+
+Comprehensive documentation is available in the `docs/` directory:
+
+- **[API Reference](docs/API_REFERENCE.md)** - Complete API documentation
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Deployment instructions
+- **[Architecture](docs/ARCHITECTURE.md)** - System architecture and design
+- **[Contributing](docs/CONTRIBUTING.md)** - Contribution guidelines
+- **[Changelog](docs/CHANGELOG.md)** - Version history and updates
 
 ## 🏆 **Enterprise Support**
 

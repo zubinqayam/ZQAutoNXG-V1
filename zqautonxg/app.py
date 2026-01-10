@@ -2,6 +2,7 @@
 # Copyright © 2025 Zubin Qayam — ZQAutoNXG Powered by ZQ AI LOGIC
 # Licensed under the Apache License, Version 2.0
 
+import asyncio
 import logging
 import os
 import time
@@ -12,6 +13,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, generate_latest
 from starlette.responses import Response
+
+from contextlib import asynccontextmanager
+
+# Import API routers
+from zqautonxg.api.v1 import logs, network, nodes, workflows
 
 # ZQAutoNXG Configuration
 APP_NAME = os.getenv("APP_NAME", "ZQAutoNXG")
@@ -26,6 +32,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger("zqautonxg")
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan handler."""
+    # Startup
+    asyncio.create_task(logs.generate_sample_logs())
+    logger.info("ZQAutoNXG platform started successfully")
+    yield
+    # Shutdown
+    logger.info("ZQAutoNXG platform shutting down")
+
+
 # Create FastAPI application
 app = FastAPI(
     title=APP_NAME,
@@ -38,7 +56,8 @@ app = FastAPI(
     license_info={
         "name": "Apache License 2.0",
         "url": "http://www.apache.org/licenses/LICENSE-2.0",
-    }
+    },
+    lifespan=lifespan,
 )
 
 # Add CORS middleware
@@ -54,6 +73,27 @@ app.add_middleware(
 # Compressing responses > 1000 bytes significantly reduces network bandwidth usage
 # and improves client response times, especially for the /metrics endpoint
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Include API routers
+app.include_router(workflows.router, prefix="/api/v1")
+app.include_router(nodes.router, prefix="/api/v1")
+app.include_router(logs.router, prefix="/api/v1")
+app.include_router(network.router, prefix="/api/v1")
+
+# Serve frontend static files if available
+frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+if os.path.exists(frontend_path):
+    # Serve index.html at /ui
+    @app.get("/ui")
+    async def serve_ui():
+        """Serve the web interface."""
+        index_path = os.path.join(frontend_path, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+        return {"message": "Frontend not available"}
+    
+    logger.info(f"Frontend available at /ui")
+
 
 # Prometheus metrics
 REQUEST_COUNT = Counter('zqautonxg_requests_total', 'Total requests', ['method', 'endpoint'])
@@ -149,6 +189,7 @@ async def version():
         "build_date": "2025-10-14",
         "git_commit": os.getenv("GIT_COMMIT", "unknown")
     }
+
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZQAutoNXG - Next-Generation Automation Platform</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container { max-width: 1200px; margin: 0 auto; }
+        
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .header h1 { color: #667eea; font-size: 2.5rem; margin-bottom: 10px; }
+        .badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .card h3 { color: #667eea; margin-bottom: 15px; }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .btn:hover { background: #5568d3; }
+        
+        .logs {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 12px;
+            font-family: 'Courier New', monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .footer { text-align: center; color: white; margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 ZQAutoNXG</h1>
+            <p>Next-Generation eXtended Automation Platform</p>
+            <span class="badge">Powered by ZQ AI LOGIC™</span>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>📊 Platform Status</h3>
+                <div id="status">Loading...</div>
+                <button class="btn" onclick="refreshStatus()">🔄 Refresh</button>
+                <button class="btn" onclick="window.open('/docs', '_blank')">📚 API Docs</button>
+            </div>
+
+            <div class="card">
+                <h3>🔗 Quick Actions</h3>
+                <button class="btn" onclick="createWorkflow()">✨ Create Workflow</button>
+                <button class="btn" onclick="viewWorkflows()">📋 View Workflows</button>
+                <button class="btn" onclick="window.open('/metrics', '_blank')">📈 Metrics</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>📝 Activity Logs</h3>
+            <div class="logs" id="logs"></div>
+        </div>
+
+        <div class="footer">
+            <p><strong>ZQAutoNXG v6.0.0</strong> - Architecture: G V2 NovaBase</p>
+            <p>Copyright © 2025 Zubin Qayam — Apache 2.0 License</p>
+        </div>
+    </div>
+
+    <script>
+        const API = window.location.origin;
+        
+        async function refreshStatus() {
+            const data = await fetch(`${API}/`).then(r => r.json());
+            document.getElementById('status').innerHTML = `
+                <strong>${data.platform}</strong> v${data.version}<br>
+                Status: ${data.status}<br>
+                Architecture: ${data.architecture}
+            `;
+            log('INFO', 'Status refreshed');
+        }
+
+        async function createWorkflow() {
+            const data = await fetch(`${API}/api/v1/workflows`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: 'Demo Workflow',
+                    nodes: [],
+                    edges: []
+                })
+            }).then(r => r.json());
+            log('INFO', `Created workflow: ${data.id}`);
+        }
+
+        async function viewWorkflows() {
+            const workflows = await fetch(`${API}/api/v1/workflows`).then(r => r.json());
+            log('INFO', `Found ${workflows.length} workflows`);
+        }
+
+        function log(level, msg) {
+            const logs = document.getElementById('logs');
+            const time = new Date().toLocaleTimeString();
+            logs.innerHTML = `<div>[${time}] [${level}] ${msg}</div>` + logs.innerHTML;
+        }
+
+        window.onload = refreshStatus;
+    </script>
+</body>
+</html>
