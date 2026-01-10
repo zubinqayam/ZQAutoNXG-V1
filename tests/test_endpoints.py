@@ -32,7 +32,9 @@ async def test_status(client):
     response = await client.get("/status")
     assert response.status_code == 200
     data = response.json()
-    assert data["integrations"]["prometheus"] == "active"
+    assert data["status"] in ["healthy", "degraded", "unhealthy"]
+    assert data["components"]["telemetry_mesh"]["status"] == "ready"
+    assert data["integrations"]["prometheus"]["status"] == "active"
 
 @pytest.mark.asyncio
 async def test_version(client):
