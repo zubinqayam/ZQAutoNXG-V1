@@ -2,7 +2,7 @@
 name = "zqautonxg-desktop"
 version = "0.1.0"
 description = "ZQAutoNXG Desktop Application"
-authors = ["you"]
+authors = ["Jane Doe <jane.doe@example.com>"]
 edition = "2021"
 
 [build-dependencies]
