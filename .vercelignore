@@ -1,0 +1,58 @@
+# Build artifacts
+*.tsbuildinfo
+dist/
+build/
+.turbo/
+out/
+.next/
+
+# Dependencies
+node_modules/
+.pnpm/
+.yarn/
+
+# Cache directories
+.vercel/
+.cache/
+.parcel-cache/
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.coverage
+
+# Development files
+.env.local
+.env.*.local
+*.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Tests
+tests/
+
+# Documentation
+docs/
+
+# Monitoring
+monitoring/
+
+# Development containers
+.devcontainer/
+
+# Git
+.git/
+.gitignore
+.github/

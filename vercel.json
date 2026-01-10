@@ -1,0 +1,29 @@
+{
+  "name": "zqautonxg",
+  "version": 2,
+  "buildCommand": "pip install -r requirements.txt && npm install --prefix frontend",
+  "public": false,
+  "env": {
+    "APP_NAME": "@zqautonxg_app_name",
+    "PORT": "8000",
+    "HOST": "0.0.0.0"
+  },
+  "envs": {
+    "APP_NAME": {
+      "description": "Application name",
+      "default": "ZQAutoNXG"
+    }
+  },
+  "functions": {
+    "zqautonxg/app.py": {
+      "memory": 1024,
+      "maxDuration": 300
+    }
+  },
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "zqautonxg/app.py"
+    }
+  ]
+}
