@@ -7,10 +7,12 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3000";
+
 export const metadata: Metadata = {
   title: "ZQAutoNXG - Next-Generation Automation Platform",
   description: "Next-Generation eXtended Automation Platform powered by ZQ AI LOGIC™",
-  metadataBase: new URL("http://localhost:3000"),
+  metadataBase: new URL(frontendUrl),
   openGraph: {
     title: "ZQAutoNXG - Next-Generation Automation Platform",
     description: "Next-Generation eXtended Automation Platform powered by ZQ AI LOGIC™",
