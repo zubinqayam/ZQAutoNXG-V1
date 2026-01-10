@@ -2,10 +2,11 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Activity, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { API_URL } from "@/lib/config";
 
 async function getHealth() {
   try {
-    const res = await fetch("http://localhost:8000/health", {
+    const res = await fetch(`${API_URL}/health`, {
       cache: "no-store",
     });
     return await res.json();

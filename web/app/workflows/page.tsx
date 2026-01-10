@@ -2,10 +2,11 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Activity, Plus } from "lucide-react";
+import { API_URL } from "@/lib/config";
 
 async function getWorkflows() {
   try {
-    const res = await fetch("http://localhost:8000/api/v1/workflows", {
+    const res = await fetch(`${API_URL}/api/v1/workflows`, {
       cache: "no-store",
     });
     if (res.ok) {

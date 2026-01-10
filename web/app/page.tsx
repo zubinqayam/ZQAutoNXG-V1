@@ -2,10 +2,11 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Rocket, Sparkles, Globe, Shield, Activity } from "lucide-react";
+import { API_URL } from "@/lib/config";
 
 async function getStatus() {
   try {
-    const res = await fetch("http://localhost:8000/", {
+    const res = await fetch(`${API_URL}/`, {
       cache: "no-store",
     });
     return await res.json();
@@ -133,7 +134,7 @@ export default async function HomePage() {
                 🔌 API Reference
               </Link>
               <a
-                href="http://localhost:8000/docs"
+                href={`${API_URL}/docs`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-lg border-2 border-white px-6 py-3 font-medium text-white transition-colors hover:bg-white/10"
