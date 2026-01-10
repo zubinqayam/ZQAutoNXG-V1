@@ -86,6 +86,33 @@ curl http://localhost:8000/health
 curl http://localhost:8000/metrics
 ```
 
+### **Next.js Frontend (Modern UI)**
+
+For the modern React-based frontend powered by Precedent:
+
+```bash
+# Navigate to web directory
+cd web
+
+# Install Node.js dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Access frontend
+# Open browser to: http://localhost:3000
+```
+
+The Next.js frontend provides:
+- Modern React components with TypeScript
+- Tailwind CSS styling with smooth animations
+- Server-side rendering for optimal performance
+- API integration with automatic proxy to backend
+- Responsive design for all devices
+
+See [web/README.md](web/README.md) for detailed frontend documentation.
+
 ## 📚 **API Documentation**
 
 Once running, access the interactive API documentation:
@@ -196,6 +223,16 @@ ZQAutoNXG-V1/
 │   ├── ARCHITECTURE.md       # System architecture
 │   ├── CONTRIBUTING.md       # Contribution guidelines
 │   └── CHANGELOG.md          # Version history
+├── frontend/                  # Basic HTML interface
+│   ├── index.html            # Simple web UI
+│   └── README.md             # Frontend documentation
+├── web/                       # Next.js Modern Frontend (NEW)
+│   ├── app/                  # Next.js App Router
+│   ├── components/           # React components
+│   ├── lib/                  # Utilities and hooks
+│   ├── package.json          # Node.js dependencies
+│   ├── next.config.js        # Next.js configuration
+│   └── README.md             # Frontend documentation
 ├── monitoring/                # Monitoring configuration
 │   ├── prometheus.yml        # Prometheus config
 │   └── grafana/              # Grafana dashboards
