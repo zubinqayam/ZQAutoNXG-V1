@@ -18,12 +18,9 @@ router = APIRouter(prefix="/network", tags=["network"])
 # Active WebSocket connections for topology updates
 topology_connections: List[WebSocket] = []
 
-
-@router.get("/topology")
-async def get_network_topology() -> Dict[str, Any]:
-    """Get current network topology."""
-    # Generate sample topology
-    nodes = [
+# Pre-computed network topology template
+NETWORK_TOPOLOGY_TEMPLATE: Dict[str, Any] = {
+    "nodes": [
         {
             "id": "hub-1",
             "type": "hub",
@@ -56,19 +53,26 @@ async def get_network_topology() -> Dict[str, Any]:
             "status": "healthy",
             "metrics": {"latency_ms": 78, "throughput": 1050}
         },
-    ]
-    
-    connections = [
+    ],
+    "connections": [
         {"id": "conn-1", "source": "hub-1", "target": "bridge-1", "status": "active"},
         {"id": "conn-2", "source": "hub-1", "target": "bridge-2", "status": "degraded"},
         {"id": "conn-3", "source": "hub-1", "target": "bridge-3", "status": "active"},
     ]
+}
+
+
+@router.get("/topology")
+async def get_network_topology() -> Dict[str, Any]:
+    """Get current network topology."""
+    # Use pre-computed template to avoid repeated allocation
+    topology = NETWORK_TOPOLOGY_TEMPLATE.copy()
     
-    return {
-        "nodes": nodes,
-        "connections": connections,
-        "timestamp": "2025-01-10T08:00:00Z"
-    }
+    # In a real app, we might update specific dynamic fields here
+    # For now, we update timestamp to match the original static value for consistency
+    topology["timestamp"] = "2025-01-10T08:00:00Z"
+
+    return topology
 
 
 @router.websocket("/ws")
