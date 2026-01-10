@@ -80,6 +80,21 @@ app.include_router(nodes.router, prefix="/api/v1")
 app.include_router(logs.router, prefix="/api/v1")
 app.include_router(network.router, prefix="/api/v1")
 
+# Serve frontend static files if available
+frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+if os.path.exists(frontend_path):
+    # Serve index.html at /ui
+    @app.get("/ui")
+    async def serve_ui():
+        """Serve the web interface."""
+        index_path = os.path.join(frontend_path, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+        return {"message": "Frontend not available"}
+    
+    logger.info(f"Frontend available at /ui")
+
+
 # Prometheus metrics
 REQUEST_COUNT = Counter('zqautonxg_requests_total', 'Total requests', ['method', 'endpoint'])
 HEALTH_CHECKS = Counter('zqautonxg_health_checks_total', 'Health check requests')
