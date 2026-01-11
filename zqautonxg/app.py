@@ -11,8 +11,9 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.staticfiles import StaticFiles
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, generate_latest
-from starlette.responses import Response
+from starlette.responses import Response, FileResponse
 
 from contextlib import asynccontextmanager
 
@@ -83,6 +84,11 @@ app.include_router(network.router, prefix="/api/v1")
 # Serve frontend static files if available
 frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
 if os.path.exists(frontend_path):
+    # Mount static files for Vercel Web Analytics
+    static_path = os.path.join(frontend_path, "static")
+    if os.path.exists(static_path):
+        app.mount("/_vercel/insights", StaticFiles(directory=static_path, check_dir=False), name="vercel-insights")
+    
     # Serve index.html at /ui
     @app.get("/ui")
     async def serve_ui():
