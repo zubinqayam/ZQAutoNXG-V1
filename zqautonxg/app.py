@@ -129,6 +129,26 @@ HEALTH_RESPONSE_TEMPLATE: dict[str, Any] = {
     "uptime": "operational"
 }
 
+STATUS_RESPONSE_TEMPLATE: dict[str, Any] = {
+    "platform": APP_NAME,
+    "version": APP_VERSION,
+    "brand": APP_BRAND,
+    "license": "Apache License 2.0",
+    "components": {
+        "telemetry_mesh": "ready",
+        "composer_agent": "ready",
+        "vault_mesh": "ready",
+        "policy_engine": "ready",
+        "meta_learner": "ready",
+        "rca_engine": "ready"
+    },
+    "integrations": {
+        "zq_ai_logic": "configured",
+        "prometheus": "active",
+        "docker": "containerized"
+    }
+}
+
 @app.get("/")
 async def root():
     """Root endpoint with ZQAutoNXG information"""
@@ -157,25 +177,7 @@ async def metrics():
 @app.get("/status")
 async def status():
     """Detailed status information"""
-    return {
-        "platform": APP_NAME,
-        "version": APP_VERSION,
-        "brand": APP_BRAND,
-        "license": "Apache License 2.0",
-        "components": {
-            "telemetry_mesh": "ready",
-            "composer_agent": "ready",
-            "vault_mesh": "ready",
-            "policy_engine": "ready",
-            "meta_learner": "ready",
-            "rca_engine": "ready"
-        },
-        "integrations": {
-            "zq_ai_logic": "configured",
-            "prometheus": "active",
-            "docker": "containerized"
-        }
-    }
+    return STATUS_RESPONSE_TEMPLATE
 
 @app.get("/version")
 async def version():
