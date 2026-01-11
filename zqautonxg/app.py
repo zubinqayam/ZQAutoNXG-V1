@@ -225,16 +225,16 @@ async def status() -> StatusResponse:
         )
     }
     
-    # Determine overall status based on components
+    # Determine overall status based on components (single pass)
     overall_status = OverallStatus.HEALTHY
-    degraded_components = [
-        name for name, check in components.items()
-        if check.status == ComponentStatus.DEGRADED
-    ]
-    unavailable_components = [
-        name for name, check in components.items()
-        if check.status == ComponentStatus.UNAVAILABLE
-    ]
+    degraded_components = []
+    unavailable_components = []
+    
+    for name, check in components.items():
+        if check.status == ComponentStatus.UNAVAILABLE:
+            unavailable_components.append(name)
+        elif check.status == ComponentStatus.DEGRADED:
+            degraded_components.append(name)
     
     if unavailable_components:
         overall_status = OverallStatus.UNHEALTHY
