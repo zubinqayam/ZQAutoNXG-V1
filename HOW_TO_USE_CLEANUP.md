@@ -65,7 +65,7 @@ git pull
 The script will:
 - ✅ Show you what will be deleted
 - ⚠️  Ask for confirmation
-- 🗑️  Delete 25 outdated branches
+- 🗑️  Delete 24 outdated branches
 - 📊 Show you a summary
 
 ### Step 4: Verify Results
