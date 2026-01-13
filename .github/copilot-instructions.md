@@ -271,7 +271,7 @@ async def health_check() -> Dict[str, Any]:
             "telemetry_mesh": await check_telemetry_health(),
             "composer_agent": await check_composer_health()
         },
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 ```
 
