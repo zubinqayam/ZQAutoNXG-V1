@@ -1,0 +1,82 @@
+{{/*
+Copyright © 2025 Zubin Qayam — ZQAutoNXG Powered by ZQ AI LOGIC
+Licensed under the Apache License, Version 2.0
+*/}}
+{{- if .Values.redis.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "zqautonxg.fullname" . }}-redis
+  labels:
+    {{- include "zqautonxg.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cache
+spec:
+  serviceName: {{ include "zqautonxg.fullname" . }}-redis
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "zqautonxg.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: cache
+  template:
+    metadata:
+      labels:
+        {{- include "zqautonxg.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: cache
+    spec:
+      containers:
+      - name: redis
+        image: {{ .Values.redis.image }}
+        ports:
+        - name: redis
+          containerPort: {{ .Values.redis.port }}
+          protocol: TCP
+        {{- if .Values.redis.password }}
+        command:
+        - redis-server
+        - --requirepass
+        - $(REDIS_PASSWORD)
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "zqautonxg.fullname" . }}-redis
+              key: password
+        {{- end }}
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        resources:
+          {{- toYaml .Values.redis.resources | nindent 10 }}
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+  {{- if .Values.redis.persistence.enabled }}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      {{- if .Values.redis.persistence.storageClass }}
+      storageClassName: {{ .Values.redis.persistence.storageClass }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.redis.persistence.size }}
+  {{- else }}
+  volumes:
+  - name: data
+    emptyDir: {}
+  {{- end }}
+{{- end }}

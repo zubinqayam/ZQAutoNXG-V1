@@ -1,0 +1,138 @@
+{{/*
+Copyright © 2025 Zubin Qayam — ZQAutoNXG Powered by ZQ AI LOGIC
+Licensed under the Apache License, Version 2.0
+*/}}
+{{- if and .Values.otel.enabled .Values.otel.collector.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "zqautonxg.fullname" . }}-otel-collector
+  labels:
+    {{- include "zqautonxg.labels" . | nindent 4 }}
+    app.kubernetes.io/component: telemetry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "zqautonxg.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: telemetry
+  template:
+    metadata:
+      labels:
+        {{- include "zqautonxg.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: telemetry
+    spec:
+      containers:
+      - name: otel-collector
+        image: {{ .Values.otel.collector.image | default "otel/opentelemetry-collector-contrib:latest" }}
+        ports:
+        - name: otlp-grpc
+          containerPort: 4317
+          protocol: TCP
+        - name: otlp-http
+          containerPort: 4318
+          protocol: TCP
+        - name: metrics
+          containerPort: 8888
+          protocol: TCP
+        volumeMounts:
+        - name: config
+          mountPath: /etc/otel
+        resources:
+          {{- toYaml .Values.otel.collector.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 13133
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 13133
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include "zqautonxg.fullname" . }}-otel-collector
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "zqautonxg.fullname" . }}-otel-collector
+  labels:
+    {{- include "zqautonxg.labels" . | nindent 4 }}
+    app.kubernetes.io/component: telemetry
+spec:
+  type: ClusterIP
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: otlp-grpc
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      targetPort: otlp-http
+      protocol: TCP
+    - name: metrics
+      port: 8888
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    {{- include "zqautonxg.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: telemetry
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "zqautonxg.fullname" . }}-otel-collector
+  labels:
+    {{- include "zqautonxg.labels" . | nindent 4 }}
+    app.kubernetes.io/component: telemetry
+data:
+  otel-collector-config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    
+    processors:
+      batch:
+        timeout: 10s
+        send_batch_size: 1024
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 512
+    
+    exporters:
+      logging:
+        loglevel: info
+      {{- if .Values.prometheus.enabled }}
+      prometheus:
+        endpoint: "0.0.0.0:8888"
+      {{- end }}
+    
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+    
+    service:
+      extensions: [health_check]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [logging]
+        metrics:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [logging{{ if .Values.prometheus.enabled }}, prometheus{{ end }}]
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [logging]
+{{- end }}

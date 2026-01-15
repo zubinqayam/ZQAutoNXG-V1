@@ -1,0 +1,124 @@
+{{/*
+Copyright © 2025 Zubin Qayam — ZQAutoNXG Powered by ZQ AI LOGIC
+Licensed under the Apache License, Version 2.0
+*/}}
+{{- if .Values.prometheus.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "zqautonxg.fullname" . }}-prometheus
+  labels:
+    {{- include "zqautonxg.labels" . | nindent 4 }}
+    app.kubernetes.io/component: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "zqautonxg.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: monitoring
+  template:
+    metadata:
+      labels:
+        {{- include "zqautonxg.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: monitoring
+    spec:
+      containers:
+      - name: prometheus
+        image: {{ .Values.prometheus.image | default "prom/prometheus:latest" }}
+        ports:
+        - name: http
+          containerPort: 9090
+          protocol: TCP
+        args:
+        - --config.file=/etc/prometheus/prometheus.yml
+        - --storage.tsdb.path=/prometheus
+        {{- if .Values.prometheus.retention }}
+        - --storage.tsdb.retention.time={{ .Values.prometheus.retention }}
+        {{- end }}
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+        - name: data
+          mountPath: /prometheus
+        resources:
+          {{- toYaml .Values.prometheus.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include "zqautonxg.fullname" . }}-prometheus
+      {{- if .Values.prometheus.persistence.enabled }}
+      - name: data
+        persistentVolumeClaim:
+          claimName: {{ include "zqautonxg.fullname" . }}-prometheus
+      {{- else }}
+      - name: data
+        emptyDir: {}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "zqautonxg.fullname" . }}-prometheus
+  labels:
+    {{- include "zqautonxg.labels" . | nindent 4 }}
+    app.kubernetes.io/component: monitoring
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9090
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "zqautonxg.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: monitoring
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "zqautonxg.fullname" . }}-prometheus
+  labels:
+    {{- include "zqautonxg.labels" . | nindent 4 }}
+    app.kubernetes.io/component: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    scrape_configs:
+    - job_name: 'zqautonxg'
+      static_configs:
+      - targets: ['{{ include "zqautonxg.fullname" . }}:{{ .Values.service.port }}']
+      metrics_path: /metrics
+{{- if .Values.prometheus.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "zqautonxg.fullname" . }}-prometheus
+  labels:
+    {{- include "zqautonxg.labels" . | nindent 4 }}
+    app.kubernetes.io/component: monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.prometheus.persistence.storageClass }}
+  storageClassName: {{ .Values.prometheus.persistence.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.prometheus.persistence.size }}
+{{- end }}
+{{- end }}
