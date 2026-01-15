@@ -95,9 +95,15 @@ docker build -t zqautonxg:v6.0.0 .
 docker tag zqautonxg:v6.0.0 ghcr.io/zubinqayam/zqautonxg-v1:main
 docker push ghcr.io/zubinqayam/zqautonxg-v1:main
 
-# Get image digest
+# Get image digest (method 1 - from RepoDigests)
 IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' \
-  ghcr.io/zubinqayam/zqautonxg-v1:main | cut -d'@' -f2)
+  ghcr.io/zubinqayam/zqautonxg-v1:main 2>/dev/null | cut -d'@' -f2)
+
+# Alternative method for locally built images
+if [ -z "$IMAGE_DIGEST" ]; then
+  IMAGE_DIGEST=$(docker images --digests ghcr.io/zubinqayam/zqautonxg-v1 \
+    --format "{{.Digest}}" | head -1)
+fi
 
 echo "Image Digest: $IMAGE_DIGEST"
 ```

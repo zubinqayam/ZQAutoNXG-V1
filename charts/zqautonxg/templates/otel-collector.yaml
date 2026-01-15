@@ -35,6 +35,9 @@ spec:
         - name: metrics
           containerPort: 8888
           protocol: TCP
+        - name: health
+          containerPort: 13133
+          protocol: TCP
         volumeMounts:
         - name: config
           mountPath: /etc/otel
@@ -78,6 +81,10 @@ spec:
     - name: metrics
       port: 8888
       targetPort: metrics
+      protocol: TCP
+    - name: health
+      port: 13133
+      targetPort: health
       protocol: TCP
   selector:
     {{- include "zqautonxg.selectorLabels" . | nindent 4 }}
