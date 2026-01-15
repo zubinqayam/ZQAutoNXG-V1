@@ -148,6 +148,19 @@ async def health():
     response["timestamp"] = time.time()
     return response
 
+@app.get("/readyz", tags=["Health"])
+async def readiness():
+    """
+    Readiness probe endpoint for Kubernetes.
+    Returns 200 when the service is ready to accept traffic.
+    """
+    return {
+        "status": "ready",
+        "platform": APP_NAME,
+        "version": APP_VERSION,
+        "architecture": "G V2 NovaBase"
+    }
+
 @app.get("/metrics")
 async def metrics():
     """Prometheus metrics endpoint"""

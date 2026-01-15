@@ -131,6 +131,31 @@ For complete API documentation, see [docs/API_REFERENCE.md](docs/API_REFERENCE.m
 }
 ```
 
+## ♻️ **Zero-Cost Deployment (ZCD)**
+
+ZQAutoNXG NovaBase (G V2) supports **Zero-Cost Deployment**, meaning:
+- No incremental compute or storage allocation during redeploys
+- Digest-based image reuse (pre-pulled base layers)
+- Immutable dependency wheels cached in orchestrator control plane
+- Pre-provisioned OpenTelemetry sidecars for metrics continuity
+
+To ensure ZCD compliance:
+1. Use digest-pinned Docker images (`python@sha256:...`).
+2. Deploy via orchestrator manifests (Helm / ZQDeploy) referencing immutable tags.
+3. Keep `/logs` and `/tmp` volumes ephemeral within NovaBase runtime envelopes.
+
+### **ZCD Verification**
+
+```bash
+# Verify ZCD-compliant deployment
+helm upgrade --install zqautonxg ./charts/zqautonxg \
+  --set image.tag=sha256:... \
+  --reuse-values
+
+# Check deployment status
+kubectl get pods -l app.kubernetes.io/name=zqautonxg
+```
+
 ## 🔧 **Development**
 
 ### **Development Setup**
@@ -221,6 +246,32 @@ ZQAutoNXG-V1/
 
 ## 📊 **Monitoring**
 
+### 🔍 **Observability Integration**
+
+ZQAutoNXG provides comprehensive observability endpoints for production deployment:
+
+- `/metrics` → Prometheus scrape endpoint (exported via OpenTelemetry SDK)
+- `/readyz` → Readiness probe (used by NovaBase orchestrator)
+- `/health` → Liveness probe (used by closed-loop controller)
+
+**Kubernetes Integration Example:**
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 8000
+  initialDelaySeconds: 5
+  periodSeconds: 5
+```
+
 ### **Prometheus Metrics**
 
 ZQAutoNXG exposes Prometheus metrics at `/metrics`:
@@ -285,6 +336,11 @@ export LOG_LEVEL="INFO"
 - **Request logging** - Comprehensive audit trails
 - **Rate limiting** - Built-in request throttling
 - **Input validation** - Pydantic data validation
+
+> 🧠 **INNM Note:**  
+> ZQAutoNXG's Intelligence-Enhancing Matrix (INNM) algorithms are encapsulated under
+> opaque `algorithm_profile_id` references.  
+> No direct algorithmic data or behavioral metadata are exposed through the API or UI.
 
 ## 📜 **License**
 

@@ -2,6 +2,17 @@
 # Copyright © 2025 Zubin Qayam — ZQAutoNXG Powered by ZQ AI LOGIC
 # Licensed under the Apache License, Version 2.0
 
+# Multi-stage build for optimized image size
+FROM python:3.11-slim-bullseye AS builder
+
+WORKDIR /build
+
+# Copy requirements and build wheels
+COPY requirements.txt .
+RUN pip install --upgrade pip && \
+    pip wheel --no-cache-dir --no-deps -r requirements.txt -w /wheels
+
+# Production image
 FROM python:3.11-slim-bullseye AS base
 
 # Apache 2.0 OCI Labels
@@ -16,12 +27,16 @@ LABEL com.zqautonxg.version="G V2 NovaBase"
 LABEL com.zqautonxg.platform="Next-Generation eXtended Automation"
 LABEL com.zqautonxg.capabilities="AI,XR,Global-Scale,Proprietary"
 
-# Environment variables
+# Environment variables - Production & ZCD compliant
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     APP_NAME=ZQAutoNXG \
     APP_BRAND="Powered by ZQ AI LOGIC™" \
-    PYTHONPATH="/app"
+    PYTHONPATH="/app" \
+    ZQ_MODE=production \
+    ZQ_METRICS_ENABLED=true \
+    ZQ_SAFE_EXECUTION=true \
+    INNM_OPAQUE_CONTEXT=true
 
 WORKDIR /app
 
@@ -33,10 +48,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies from pre-built wheels
+COPY --from=builder /wheels /wheels
+COPY --from=builder /build/requirements.txt .
+RUN pip install --no-cache-dir /wheels/* && rm -rf /wheels
 
 # Copy ZQAutoNXG application code
 COPY zqautonxg/ ./zqautonxg/
@@ -44,7 +59,11 @@ COPY zqautonxg/ ./zqautonxg/
 # Create non-root user for security
 RUN groupadd -r -g 1001 zquser \
     && useradd -r -g zquser -u 1001 -m -s /bin/bash zquser \
+    && mkdir -p /app/logs /app/tmp \
     && chown -R zquser:zquser /app
+
+# Define ephemeral volumes for ZCD compliance
+VOLUME ["/app/logs", "/app/tmp"]
 
 # Switch to non-root user
 USER zquser
@@ -56,5 +75,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Start ZQAutoNXG application
-CMD ["uvicorn", "zqautonxg.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start ZQAutoNXG with Gunicorn + Uvicorn workers for production
+CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "zqautonxg.app:app", "--bind", "0.0.0.0:8000", "--workers", "4", "--access-logfile", "-", "--error-logfile", "-"]
