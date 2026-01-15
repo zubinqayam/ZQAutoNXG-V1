@@ -1,0 +1,232 @@
+# Copyright © 2025 Zubin Qayam — ZQAutoNXG Powered by ZQ AI LOGIC
+# Licensed under the Apache License, Version 2.0
+#
+# Enterprise values for ZQAutoNXG
+# Override default values with enterprise-grade configuration
+
+replicaCount: 3
+
+image:
+  repository: ghcr.io/zubinqayam/zqautonxg-v1
+  pullPolicy: Always
+  tag: "main"
+
+imagePullSecrets:
+  - name: ghcr-pull-secret
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/zqautonxg-role"
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8000"
+  prometheus.io/path: "/metrics"
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  hosts:
+    - host: api.zqautonxg.enterprise.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: zqautonxg-tls
+      hosts:
+        - api.zqautonxg.enterprise.local
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+  requests:
+    cpu: 1000m
+    memory: 1Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 75
+
+persistence:
+  enabled: true
+  storageClass: "gp3"
+  accessModes:
+    - ReadWriteOnce
+  size: 10Gi
+  mountPath: /app/data
+
+# PostgreSQL Enterprise Configuration
+postgres:
+  enabled: true
+  image: postgres:15-alpine
+  port: 5432
+  database: zqautonxg
+  username: zquser
+  password: ${POSTGRES_PASSWORD}
+  persistence:
+    enabled: true
+    size: 50Gi
+    storageClass: gp3
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+# Redis Enterprise Configuration
+redis:
+  enabled: true
+  image: redis:7-alpine
+  port: 6379
+  password: ${REDIS_PASSWORD}
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: gp3
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+# Prometheus Enterprise Configuration
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 15s
+    scrapeTimeout: 10s
+  image: prom/prometheus:latest
+  persistence:
+    enabled: true
+    size: 100Gi
+    storageClass: gp3
+  retention: 30d
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+
+# Grafana Enterprise Configuration
+grafana:
+  enabled: true
+  adminPassword: ${GRAFANA_ADMIN_PASSWORD}
+  image: grafana/grafana:latest
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: gp3
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+# OpenTelemetry Enterprise Configuration
+otel:
+  enabled: true
+  endpoint: "http://otel-collector:4317"
+  serviceName: "zqautonxg"
+  collector:
+    enabled: true
+    image: otel/opentelemetry-collector-contrib:latest
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+
+# Multi-tenant Enterprise Configuration
+multiTenant:
+  enabled: true
+  isolation: namespace
+  tenants:
+    - name: tenant-oman
+      namespace: zqautonxg-oman
+      quota:
+        cpu: "10"
+        memory: "20Gi"
+    - name: tenant-uae
+      namespace: zqautonxg-uae
+      quota:
+        cpu: "10"
+        memory: "20Gi"
+    - name: tenant-ksa
+      namespace: zqautonxg-ksa
+      quota:
+        cpu: "10"
+        memory: "20Gi"
+
+# Enterprise Environment Variables
+env:
+  - name: ZQ_MODE
+    value: "production"
+  - name: ZQ_METRICS_ENABLED
+    value: "true"
+  - name: INNM_OPAQUE_CONTEXT
+    value: "true"
+  - name: ZQ_SAFE_EXECUTION
+    value: "true"
+  - name: ZQ_AUDIT_ENABLED
+    value: "true"
+  - name: ZQ_ENCRYPTION_ENABLED
+    value: "true"
+  - name: ZQ_COMPLIANCE_MODE
+    value: "SOC2,ISO27001"
+  - name: DATABASE_URL
+    valueFrom:
+      secretKeyRef:
+        name: zqautonxg-secrets
+        key: database-url
+  - name: REDIS_URL
+    valueFrom:
+      secretKeyRef:
+        name: zqautonxg-secrets
+        key: redis-url
+
+# Node affinity for production workloads
+nodeSelector:
+  workload-type: production
+
+# Tolerations for dedicated nodes
+tolerations:
+  - key: "workload"
+    operator: "Equal"
+    value: "production"
+    effect: "NoSchedule"
+
+# Pod anti-affinity for high availability
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+                - zqautonxg
+        topologyKey: kubernetes.io/hostname
