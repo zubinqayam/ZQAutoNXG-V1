@@ -18,6 +18,8 @@ prometheus-client>=0.20.0
 python-json-logger>=2.0.7
 opentelemetry-api>=1.21.0
 opentelemetry-sdk>=1.21.0
+# Note: Using beta version for FastAPI instrumentation until stable release
+# This provides essential tracing capabilities for production observability
 opentelemetry-instrumentation-fastapi>=0.42b0
 
 # Database and Caching

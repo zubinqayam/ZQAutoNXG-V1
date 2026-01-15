@@ -75,8 +75,9 @@ postgres:
   port: 5432
   database: zqautonxg
   username: zquser
-  # Password should be set via --set or external secret
-  password: "changeme"  # Override with --set postgres.password=<actual-password>
+  # SECURITY: Set a strong password via --set postgres.password=<secure-password>
+  # or use an external secret manager (e.g., External Secrets Operator)
+  password: ""  # REQUIRED: Must be set before deployment
   persistence:
     enabled: true
     size: 50Gi
@@ -94,8 +95,9 @@ redis:
   enabled: true
   image: redis:7-alpine
   port: 6379
-  # Password should be set via --set or external secret
-  password: "changeme"  # Override with --set redis.password=<actual-password>
+  # SECURITY: Set a strong password via --set redis.password=<secure-password>
+  # or use an external secret manager (e.g., External Secrets Operator)
+  password: ""  # REQUIRED: Must be set before deployment
   persistence:
     enabled: true
     size: 10Gi
@@ -132,8 +134,9 @@ prometheus:
 # Grafana Enterprise Configuration
 grafana:
   enabled: true
-  # Admin password should be set via --set or external secret
-  adminPassword: "changeme"  # Override with --set grafana.adminPassword=<actual-password>
+  # SECURITY: Set a strong admin password via --set grafana.adminPassword=<secure-password>
+  # or use an external secret manager (e.g., External Secrets Operator)
+  adminPassword: ""  # REQUIRED: Must be set before deployment
   image: grafana/grafana:latest
   persistence:
     enabled: true
