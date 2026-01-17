@@ -7,8 +7,8 @@ Network topology API router.
 
 import logging
 import random
-from typing import Any, Dict, List
-from uuid import UUID, uuid4
+from typing import Any
+from uuid import uuid4
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -16,14 +16,12 @@ logger = logging.getLogger("zqautonxg.api.network")
 router = APIRouter(prefix="/network", tags=["network"])
 
 # Active WebSocket connections for topology updates
-topology_connections: List[WebSocket] = []
+topology_connections: list[WebSocket] = []
 
-
-@router.get("/topology")
-async def get_network_topology() -> Dict[str, Any]:
-    """Get current network topology."""
-    # Generate sample topology
-    nodes = [
+# Pre-computed topology template
+# Using tuples for immutable collections to optimize performance
+TOPOLOGY_TEMPLATE: dict[str, Any] = {
+    "nodes": (
         {
             "id": "hub-1",
             "type": "hub",
@@ -56,19 +54,20 @@ async def get_network_topology() -> Dict[str, Any]:
             "status": "healthy",
             "metrics": {"latency_ms": 78, "throughput": 1050}
         },
-    ]
-    
-    connections = [
+    ),
+    "connections": (
         {"id": "conn-1", "source": "hub-1", "target": "bridge-1", "status": "active"},
         {"id": "conn-2", "source": "hub-1", "target": "bridge-2", "status": "degraded"},
         {"id": "conn-3", "source": "hub-1", "target": "bridge-3", "status": "active"},
-    ]
-    
-    return {
-        "nodes": nodes,
-        "connections": connections,
-        "timestamp": "2025-01-10T08:00:00Z"
-    }
+    ),
+    "timestamp": "2025-01-10T08:00:00Z"
+}
+
+
+@router.get("/topology")
+async def get_network_topology() -> dict[str, Any]:
+    """Get current network topology."""
+    return TOPOLOGY_TEMPLATE
 
 
 @router.websocket("/ws")
@@ -76,18 +75,18 @@ async def network_topology_websocket(websocket: WebSocket) -> None:
     """WebSocket endpoint for real-time network topology updates."""
     await websocket.accept()
     topology_connections.append(websocket)
-    
+
     logger.info(f"New topology WebSocket connection. Total: {len(topology_connections)}")
-    
+
     # Send initial topology
     import json
     topology = await get_network_topology()
     await websocket.send_text(json.dumps(topology))
-    
+
     try:
         while True:
             # Wait for messages or send updates
-            data = await websocket.receive_text()
+            _ = await websocket.receive_text()
             await websocket.send_text(json.dumps({"type": "pong"}))
     except WebSocketDisconnect:
         topology_connections.remove(websocket)
@@ -99,11 +98,11 @@ async def network_topology_websocket(websocket: WebSocket) -> None:
 
 
 @router.post("/deploy-bridge")
-async def deploy_bridge(name: str, region: str) -> Dict[str, str]:
+async def deploy_bridge(name: str, region: str) -> dict[str, str]:
     """Deploy a new network bridge."""
     bridge_id = str(uuid4())
     logger.info(f"Deploying bridge {name} in {region}")
-    
+
     return {
         "bridge_id": bridge_id,
         "name": name,
@@ -113,7 +112,7 @@ async def deploy_bridge(name: str, region: str) -> Dict[str, str]:
 
 
 @router.get("/nodes/{node_id}/metrics")
-async def get_node_metrics(node_id: str) -> Dict[str, Any]:
+async def get_node_metrics(node_id: str) -> dict[str, Any]:
     """Get metrics for a specific network node."""
     return {
         "node_id": node_id,
