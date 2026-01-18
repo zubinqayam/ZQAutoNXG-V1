@@ -120,7 +120,7 @@ jobs:
       #       --namespace zqautonxg-staging \
       #       --create-namespace \
       #       --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
-      #       --set image.tag=${{ needs.build.outputs.image-digest }} \
+      #       --set image.tag=${{ github.sha }} \
       #       --reuse-values \
       #       --wait \
       #       --timeout 10m
