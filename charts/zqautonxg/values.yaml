@@ -98,6 +98,13 @@ postgres:
     enabled: false
     size: 5Gi
     storageClass: standard
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
 
 # Redis configuration
 redis:
@@ -109,6 +116,13 @@ redis:
     enabled: false
     size: 2Gi
     storageClass: standard
+  resources:
+    limits:
+      cpu: 250m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
 
 # Prometheus configuration
 prometheus:
@@ -117,6 +131,19 @@ prometheus:
     enabled: false
     interval: 30s
     scrapeTimeout: 10s
+  image: prom/prometheus:v2.48.1
+  persistence:
+    enabled: false
+    size: 5Gi
+    storageClass: standard
+  retention: 15d
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
 
 # Grafana configuration
 grafana:
@@ -124,15 +151,21 @@ grafana:
   adminPassword: zqadmin
   image:
     repository: grafana/grafana
-    tag: "latest"
+    tag: "10.2.3"
     pullPolicy: IfNotPresent
-  resources: {}
   persistence:
     enabled: false
     storageClass: ""
     accessModes:
       - ReadWriteOnce
     size: 1Gi
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
 
 # OpenTelemetry configuration
 otel:
@@ -141,6 +174,17 @@ otel:
   serviceName: "zqautonxg"
   collector:
     enabled: false
+    image:
+      repository: otel/opentelemetry-collector-contrib
+      pullPolicy: IfNotPresent
+      tag: "0.91.0"
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
 
 # Multi-tenant configuration
 multiTenant:

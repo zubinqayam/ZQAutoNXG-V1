@@ -24,7 +24,12 @@ spec:
     spec:
       containers:
       - name: grafana
-        image: {{ .Values.grafana.image | default "grafana/grafana:latest" }}
+        {{- if .Values.grafana.image.repository }}
+        image: "{{ .Values.grafana.image.repository }}:{{ .Values.grafana.image.tag | default "latest" }}"
+        imagePullPolicy: {{ .Values.grafana.image.pullPolicy | default "IfNotPresent" }}
+        {{- else }}
+        image: {{ .Values.grafana.image | default "grafana/grafana:10.2.3" }}
+        {{- end }}
         ports:
         - name: http
           containerPort: 3000

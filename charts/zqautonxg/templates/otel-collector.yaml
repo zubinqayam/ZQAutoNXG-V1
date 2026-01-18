@@ -24,7 +24,12 @@ spec:
     spec:
       containers:
       - name: otel-collector
-        image: {{ .Values.otel.collector.image | default "otel/opentelemetry-collector-contrib:latest" }}
+        {{- if .Values.otel.collector.image.repository }}
+        image: "{{ .Values.otel.collector.image.repository }}:{{ .Values.otel.collector.image.tag | default "latest" }}"
+        imagePullPolicy: {{ .Values.otel.collector.image.pullPolicy | default "IfNotPresent" }}
+        {{- else }}
+        image: {{ .Values.otel.collector.image | default "otel/opentelemetry-collector-contrib:0.91.0" }}
+        {{- end }}
         ports:
         - name: otlp-grpc
           containerPort: 4317

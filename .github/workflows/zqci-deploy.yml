@@ -107,6 +107,8 @@ jobs:
           version: '3.13.0'
       
       # Uncomment when Kubernetes cluster is configured
+      # NOTE: Before enabling deployment, configure KUBE_CONFIG_STAGING secret in GitHub repository settings
+      # with your Kubernetes cluster kubeconfig file
       # - name: Configure kubectl
       #   uses: azure/k8s-set-context@v3
       #   with:
@@ -157,6 +159,8 @@ jobs:
           version: '3.13.0'
       
       # Uncomment when Kubernetes cluster is configured
+      # NOTE: Before enabling deployment, configure KUBE_CONFIG_PRODUCTION secret in GitHub repository settings
+      # with your Kubernetes cluster kubeconfig file
       # - name: Configure kubectl
       #   uses: azure/k8s-set-context@v3
       #   with:
