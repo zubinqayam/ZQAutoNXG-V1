@@ -122,6 +122,17 @@ prometheus:
 grafana:
   enabled: false
   adminPassword: zqadmin
+  image:
+    repository: grafana/grafana
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  resources: {}
+  persistence:
+    enabled: false
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 1Gi
 
 # OpenTelemetry configuration
 otel:
