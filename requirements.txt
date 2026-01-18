@@ -5,6 +5,7 @@
 # Core Web Framework
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
+gunicorn>=21.2.0
 
 # Configuration and Data Validation
 pydantic>=2.7.0
@@ -15,6 +16,15 @@ jsonschema>=4.23.0
 # Observability and Metrics
 prometheus-client>=0.20.0
 python-json-logger>=2.0.7
+opentelemetry-api>=1.21.0
+opentelemetry-sdk>=1.21.0
+# Note: Using beta version for FastAPI instrumentation until stable release
+# This provides essential tracing capabilities for production observability
+opentelemetry-instrumentation-fastapi>=0.42b0
+
+# Database and Caching
+psycopg2-binary>=2.9.9
+redis>=5.0.0
 
 # Graph Algorithms for ComposerAgent
 networkx>=3.3.0

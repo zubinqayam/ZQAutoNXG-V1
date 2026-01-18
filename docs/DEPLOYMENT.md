@@ -3,18 +3,137 @@
 **Version:** 6.0.0  
 **Powered by:** ZQ AI LOGIC™
 
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Deployment Options](#deployment-options)
+  - [Option 1: Kubernetes with Helm (Production)](#option-1-kubernetes-with-helm-production)
+  - [Option 2: Docker Compose (Development)](#option-2-docker-compose-development)
+  - [Option 3: Docker Only](#option-3-docker-only)
+  - [Option 4: Local Development](#option-4-local-development)
+- [Observability Endpoints](#observability-endpoints)
+- [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting)
+
 ## Prerequisites
+
+### Basic Requirements
 
 - Docker and Docker Compose (recommended)
 - Python 3.11+ (for local development)
-- PostgreSQL 15+ (if not using Docker)
-- Redis 7+ (if not using Docker)
+- PostgreSQL 15+ (if not using Docker/Kubernetes)
+- Redis 7+ (if not using Docker/Kubernetes)
+
+### For Kubernetes/Helm Deployments
+
+- Kubernetes cluster 1.24+
+- Helm 3.13.0+
+- kubectl configured for your cluster
+- (Optional) cert-manager for TLS
+- (Optional) Ingress controller (nginx recommended)
 
 ## Deployment Options
 
-### Option 1: Docker Compose (Recommended)
+### Option 1: Kubernetes with Helm (Production)
 
-This is the easiest way to deploy ZQAutoNXG with all dependencies.
+**Recommended for:** Production workloads, enterprise deployments, multi-tenant environments
+
+#### Quick Start
+
+```bash
+# Clone repository
+git clone https://github.com/zubinqayam/ZQAutoNXG-V1.git
+cd ZQAutoNXG-V1
+
+# Install with default configuration
+helm install zqautonxg ./charts/zqautonxg \
+  --namespace zqautonxg \
+  --create-namespace
+
+# Verify deployment
+kubectl get pods -n zqautonxg
+kubectl get svc -n zqautonxg
+```
+
+#### Enterprise Deployment
+
+```bash
+# Deploy with enterprise configuration
+helm install zqautonxg ./charts/zqautonxg \
+  -f charts/zqautonxg/values.yaml \
+  -f charts/zqautonxg/values-enterprise.yaml \
+  --namespace zqautonxg-production \
+  --create-namespace
+
+# Enable all infrastructure components
+helm upgrade zqautonxg ./charts/zqautonxg \
+  --set postgres.enabled=true \
+  --set redis.enabled=true \
+  --set prometheus.enabled=true \
+  --set grafana.enabled=true \
+  --set otel.enabled=true \
+  --reuse-values
+```
+
+#### Zero-Cost Deployment (ZCD)
+
+For ZCD-compliant deployments using digest-pinned images:
+
+```bash
+# Get image digest
+IMAGE_DIGEST=$(docker inspect \
+  ghcr.io/zubinqayam/zqautonxg-v1:main \
+  --format='{{index .RepoDigests 0}}' | cut -d'@' -f2)
+
+# Deploy with digest
+helm upgrade --install zqautonxg ./charts/zqautonxg \
+  --set image.tag="@${IMAGE_DIGEST}" \
+  --reuse-values \
+  --wait
+```
+
+See [ZCD_COMPLIANCE.md](ZCD_COMPLIANCE.md) for detailed ZCD guidelines.
+
+#### Access Application
+
+```bash
+# Port forward to access locally
+kubectl port-forward -n zqautonxg svc/zqautonxg 8000:8000
+
+# Test endpoints
+curl http://localhost:8000/
+curl http://localhost:8000/health
+curl http://localhost:8000/readyz
+curl http://localhost:8000/metrics
+```
+
+#### Ingress Configuration
+
+```yaml
+# Enable ingress in values
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: api.zqautonxg.enterprise.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: zqautonxg-tls
+      hosts:
+        - api.zqautonxg.enterprise.local
+```
+
+For complete Helm deployment guide, see [HELM_GUIDE.md](HELM_GUIDE.md).
+
+### Option 2: Docker Compose (Development)
+
+### Option 2: Docker Compose (Development)
+
+**Recommended for:** Local development, testing, quick demos
 
 #### Step 1: Clone Repository
 
@@ -75,7 +194,7 @@ docker-compose pull
 docker-compose up -d
 ```
 
-### Option 2: Docker Only
+### Option 3: Docker Only
 
 Build and run the backend container manually:
 
@@ -94,7 +213,7 @@ docker run -d \
   zqautonxg:latest
 ```
 
-### Option 3: Local Development
+### Option 4: Local Development
 
 For development without Docker:
 
@@ -143,6 +262,126 @@ kubectl get services -n zqautonxg
 
 # View logs
 kubectl logs -f deployment/zqautonxg-backend -n zqautonxg
+```
+
+## Observability Endpoints
+
+ZQAutoNXG provides comprehensive observability endpoints for production deployment and monitoring:
+
+### Health & Readiness Probes
+
+#### `/health` - Liveness Probe
+
+Used by Kubernetes and load balancers to determine if the service is alive:
+
+```bash
+curl http://localhost:8000/health
+```
+
+Response:
+```json
+{
+  "status": "healthy",
+  "platform": "ZQAutoNXG",
+  "version": "6.0.0",
+  "architecture": "G V2 NovaBase",
+  "uptime": "operational",
+  "timestamp": 1705324800.123
+}
+```
+
+**Kubernetes Configuration:**
+```yaml
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+```
+
+#### `/readyz` - Readiness Probe
+
+Used by Kubernetes to determine if the service is ready to accept traffic:
+
+```bash
+curl http://localhost:8000/readyz
+```
+
+Response:
+```json
+{
+  "status": "ready",
+  "platform": "ZQAutoNXG",
+  "version": "6.0.0",
+  "architecture": "G V2 NovaBase"
+}
+```
+
+**Kubernetes Configuration:**
+```yaml
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 8000
+  initialDelaySeconds: 5
+  periodSeconds: 5
+```
+
+### Metrics Collection
+
+#### `/metrics` - Prometheus Endpoint
+
+Exports metrics in Prometheus format for scraping:
+
+```bash
+curl http://localhost:8000/metrics
+```
+
+**Available Metrics:**
+- `zqautonxg_requests_total` - Total HTTP requests by method and endpoint
+- `zqautonxg_health_checks_total` - Health check request count
+- Standard Python and FastAPI metrics (request duration, memory usage, etc.)
+
+**Prometheus Configuration:**
+```yaml
+scrape_configs:
+  - job_name: 'zqautonxg'
+    static_configs:
+      - targets: ['zqautonxg:8000']
+    metrics_path: /metrics
+    scrape_interval: 15s
+```
+
+### OpenTelemetry Integration
+
+When enabled, ZQAutoNXG exports telemetry data to OpenTelemetry collector:
+
+```yaml
+env:
+  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+    value: "http://otel-collector:4317"
+  - name: OTEL_SERVICE_NAME
+    value: "zqautonxg"
+```
+
+### Example: Complete Observability Stack
+
+```bash
+# Deploy with full observability
+helm upgrade --install zqautonxg ./charts/zqautonxg \
+  --set prometheus.enabled=true \
+  --set grafana.enabled=true \
+  --set otel.enabled=true \
+  --set prometheus.serviceMonitor.enabled=true
+
+# Access monitoring services
+kubectl port-forward svc/zqautonxg-prometheus 9090:9090
+kubectl port-forward svc/zqautonxg-grafana 3000:3000
+
+# Grafana credentials
+kubectl get secret zqautonxg-grafana \
+  -o jsonpath="{.data.admin-password}" | base64 --decode
 ```
 
 ## Environment Variables

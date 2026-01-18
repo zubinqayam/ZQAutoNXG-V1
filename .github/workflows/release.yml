@@ -1,29 +1,34 @@
-name: ZQAutoNXG Release & CI/CD
+# ==============================================================
+# ZQAutoNXG Release & CI/CD Workflow
 # Powered by ZQ AI LOGIC™
 # Copyright © 2025 Zubin Qayam — ZQAutoNXG
 # Licensed under the Apache License, Version 2.0
+# ==============================================================
+
+name: ZQAutoNXG Release & CI/CD
 
 on:
   push:
-    tags: ['v*', 'gv*', '*-release']
-    branches: [main]
+    tags: [ 'v*', 'gv*', '*-release*' ]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
   workflow_dispatch:
     inputs:
       release_type:
-        description: 'Release type (patch/minor/major)'
+        description: "Release type (patch/minor/major)"
         required: true
-        default: 'patch'
+        default: "patch"
         type: choice
-        options: ['patch', 'minor', 'major']
+        options: [ 'patch', 'minor', 'major' ]
 
 env:
-  RELEASE_NAME: "ZQAutoNXG"
+  RELEASE_NAME: ZQAutoNXG
   RELEASE_BRAND: "Powered by ZQ AI LOGIC™"
-  PACKAGE_NAME: "zqautonxg"
+  PACKAGE_NAME: zqautonxg
   ARCHITECTURE: "G V2 NovaBase"
-  
+  PYTHONUNBUFFERED: 1
+
 permissions:
   contents: write
   packages: write
@@ -31,60 +36,51 @@ permissions:
   id-token: write
   attestations: write
 
+# ==============================================================
+# 1️⃣ Security & Quality Validation
+# ==============================================================
+
 jobs:
   security-validation:
     name: Security & Quality Validation
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout ZQAutoNXG
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          
+          python-version: "3.11"
+
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
           pip install bandit safety pytest ruff mypy
-          
-      - name: Security Scanning with Bandit
+
+      - name: Security Scan (Bandit)
         run: |
-          echo "🔒 Running ZQAutoNXG security audit..."
-          bandit -r zqautonxg/ -f json -o bandit-report.json || true
-          
-      - name: Dependency Vulnerability Check
+          echo "🔍 Running Bandit scan..."
+          bandit -r zqautonxg -f json -o bandit-report.json || true
+
+      - name: Dependency Audit (Safety)
         run: |
-          echo "🛡️ Checking dependencies for vulnerabilities..."
-          safety check --json --output safety-report.json || true
-          
-      - name: Code Quality with Ruff
+          echo "🧪 Checking Python dependencies..."
+          safety check --full-report -o safety-report.json || true
+
+      - name: Lint & Style (Ruff)
         run: |
-          echo "🔍 Validating code quality..."
-          ruff check zqautonxg/ --output-format=json > ruff-report.json || true
-          
-      - name: Type Checking with MyPy
+          echo "🧹 Validating code style..."
+          ruff check zqautonxg --output-format json > ruff-report.json || true
+
+      - name: Type Checking (MyPy)
         run: |
-          echo "📊 Running type analysis..."
-          mypy zqautonxg/ --json-report mypy-report.json || true
-          
-      - name: Test Suite Execution
-        run: |
-          echo "🧪 Running ZQAutoNXG test suite..."
-          python -m pytest --version || echo "Tests will be added in future versions"
-          
-      - name: License Compliance Check
-        run: |
-          echo "⚖️ Verifying Apache 2.0 compliance..."
-          grep -r "Apache License" . --include="*.py" | head -5
-          grep -r "ZQ AI LOGIC" . --include="*.py" | head -5
-                 
-      - name: Upload Security Reports
+          echo "🧩 Running type validation..."
+          mypy zqautonxg --strict --pretty --json-report mypy-report.json || true
+
+      - name: Upload Security Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: security-reports
@@ -94,225 +90,171 @@ jobs:
             ruff-report.json
             mypy-report.json
 
+# ==============================================================
+# 2️⃣ Build & Container Test
+# ==============================================================
+
   build-and-test:
-    name: Build & Container Testing
+    name: Build & Container Validation
     runs-on: ubuntu-latest
     needs: security-validation
     outputs:
-      image-digest: ${{ steps.build.outputs.digest }}
-      
+      image-digest: ${{ steps.push.outputs.digest }}
+
     steps:
-      - name: Checkout ZQAutoNXG
+      - name: Checkout Repo
         uses: actions/checkout@v4
-        
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        
-      - name: Login to GitHub Container Registry
-        if: github.event_name != 'pull_request'
+
+      - name: Derive Lowercase Image Repo
+        id: image_repo
+        run: |
+          IMAGE_REPO=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_REPO=$IMAGE_REPO" >> $GITHUB_ENV
+
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: Build ZQAutoNXG Container
-        id: build
+
+      - name: Build and Push Image (ZCD Digest)
+        id: push
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
+          platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ toLower(github.repository) }}:latest
-            ghcr.io/${{ toLower(github.repository) }}:${{ github.sha }}
-            ghcr.io/${{ toLower(github.repository) }}:gv2-novabase
+            ghcr.io/${{ env.IMAGE_REPO }}:latest
+            ghcr.io/${{ env.IMAGE_REPO }}:${{ github.sha }}
+            ghcr.io/${{ env.IMAGE_REPO }}:gv2-novabase
           labels: |
             org.opencontainers.image.title=ZQAutoNXG
-            org.opencontainers.image.description=Next-Generation eXtended Automation Platform - Powered by ZQ AI LOGIC™
-            org.opencontainers.image.vendor=ZQ AI LOGIC™
+            org.opencontainers.image.description="Next-Generation eXtended Automation Platform"
+            org.opencontainers.image.vendor="ZQ AI LOGIC™"
             org.opencontainers.image.licenses=Apache-2.0
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ github.ref_name }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ github.run_id }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          
+            org.opencontainers.image.architecture=${{ env.ARCHITECTURE }}
+
       - name: Test Container Health
         if: github.event_name != 'pull_request'
         run: |
-          echo "🧪 Testing ZQAutoNXG container health..."
-          docker run --rm -d --name zqautonxg-test \
-            -p 8080:8000 \
-            ghcr.io/${{ toLower(github.repository) }}:${{ github.sha }}
-          
-          # Wait for startup
+          echo "🧠 Testing ZQAutoNXG container..."
+          docker run -d --name zqautonxg-test -p 8080:8000 ghcr.io/${{ env.IMAGE_REPO }}:${{ github.sha }}
           sleep 10
-          
-          # Test endpoints
-          curl -f http://localhost:8080/health
-          curl -f http://localhost:8080/version
-          curl -f http://localhost:8080/
-          
-          # Cleanup
+          curl -f http://localhost:8080/health || (docker logs zqautonxg-test && exit 1)
           docker stop zqautonxg-test
+          docker rm zqautonxg-test
+
+# ==============================================================
+# 3️⃣ Release Package & Notes
+# ==============================================================
 
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [security-validation, build-and-test]
+    needs: [ security-validation, build-and-test ]
     if: startsWith(github.ref, 'refs/tags/')
-    
+
     steps:
-      - name: Checkout ZQAutoNXG
+      - name: Checkout Repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          
+
       - name: Download Security Reports
         uses: actions/download-artifact@v4
         with:
           name: security-reports
-          path: ./reports/
-          
+          path: ./reports
+
       - name: Generate Release Notes
-        id: release-notes
+        id: release_notes
         run: |
           cat > release-notes.md << 'EOF'
-          # 🚀 ZQAutoNXG ${{ github.ref_name }}
+          # ZQAutoNXG – Release ${{ github.ref_name }}
           **Powered by ZQ AI LOGIC™**
-          
-          ## 📊 Release Information
-          - **Version**: ${{ github.ref_name }}
-          - **Release Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-          - **Git Commit**: ${{ github.sha }}
-          - **Architecture**: G V2 NovaBase
-          - **License**: Apache License 2.0
-          
-          ## 🔒 Security & Quality
-          - **Security Scan**: ✅ Bandit vulnerability assessment completed
-          - **Dependency Check**: ✅ Safety vulnerability scan completed  
-          - **Code Quality**: ✅ Ruff linting and formatting validated
-          - **Type Safety**: ✅ MyPy type checking completed
-          - **Container Security**: ✅ Multi-architecture build validated
-          
+
+          ## 🧩 Release Information
+          - **Version:** ${{ github.ref_name }}
+          - **Commit:** ${{ github.sha }}
+          - **Architecture:** ${{ env.ARCHITECTURE }}
+          - **License:** Apache 2.0
+
+          ## 🧠 Security & Quality
+          - ✅ Bandit Scan Passed
+          - ✅ Safety Dependencies Audited
+          - ✅ Ruff Style Clean
+          - ✅ MyPy Type Check OK
+
           ## 🚀 Quick Start
-          
+
           ### Docker Deployment
           ```bash
-          # Pull and run ZQAutoNXG
-          docker run -d --name zqautonxg \
-            -p 8000:8000 \
-            ghcr.io/${{ toLower(github.repository) }}:${{ github.ref_name }}
-          
-          # Verify health
+          docker run -d -p 8000:8000 \
+          ghcr.io/${{ env.IMAGE_REPO }}:${{ github.ref_name }}
+          ```
+          Verify health:
+          ```bash
           curl http://localhost:8000/health
           ```
-          
-          ### Python Installation
-          ```bash
-          # Clone repository
-          git clone https://github.com/${{ github.repository }}.git
-          cd ZQAutoNXG-V1
-          
-          # Install and run
-          pip install -r requirements.txt
-          uvicorn zqautonxg.app:app --host 0.0.0.0 --port 8000
-          ```
-          
-          ## 🏢 Architecture Highlights
-          - **Hexagonal Architecture**: Clean domain/adapter separation
-          - **FastAPI Framework**: High-performance async API
-          - **Prometheus Metrics**: Built-in observability
-          - **Apache 2.0 Licensed**: Enterprise-friendly open source
-          - **ZQ AI LOGIC™**: Proprietary AI algorithms integration-ready
-          
-          ## 📜 License & Copyright
-          Copyright © 2025 Zubin Qayam — ZQAutoNXG Powered by ZQ AI LOGIC
-          Licensed under the Apache License, Version 2.0
-          
-          ZQ AI LOGIC™ and ZQAutoNXG are trademarks of Zubin Qayam.
-          
-          ## 🔗 Resources
-          - **Repository**: https://github.com/${{ github.repository }}
-          - **Documentation**: https://github.com/${{ github.repository }}/blob/main/README.md
-          - **Issues**: https://github.com/${{ github.repository }}/issues
-          - **License**: https://github.com/${{ github.repository }}/blob/main/LICENSE
-          
-          ---
-          **ZQAutoNXG - Next-Generation eXtended Automation Platform**  
-          **Powered by ZQ AI LOGIC™**
           EOF
-          
+
       - name: Create Release Archive
         run: |
-          echo "📦 Creating ZQAutoNXG release package..."
-          
-          # Create release directory
+          echo "📦 Creating release artifact..."
           mkdir -p release/zqautonxg-${{ github.ref_name }}
-          
-          # Copy application files
-          cp -r zqautonxg/ release/zqautonxg-${{ github.ref_name }}/
-          cp requirements.txt release/zqautonxg-${{ github.ref_name }}/
-          cp Dockerfile release/zqautonxg-${{ github.ref_name }}/
-          cp LICENSE release/zqautonxg-${{ github.ref_name }}/
-          cp README.md release/zqautonxg-${{ github.ref_name }}/
-          
-          # Copy security reports
-          mkdir -p release/zqautonxg-${{ github.ref_name }}/reports/
-          cp reports/* release/zqautonxg-${{ github.ref_name }}/reports/ || true
-          
-          # Create archives
-          cd release
-          tar -czf zqautonxg-${{ github.ref_name }}.tar.gz zqautonxg-${{ github.ref_name }}/
-          zip -r zqautonxg-${{ github.ref_name }}.zip zqautonxg-${{ github.ref_name }}/
-          
+          cp -r zqautonxg requirements.txt Dockerfile README.md LICENSE release/zqautonxg-${{ github.ref_name }}/
+          cd release && tar -czf zqautonxg-${{ github.ref_name }}.tar.gz zqautonxg-${{ github.ref_name }}
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          name: "${{ env.RELEASE_NAME }} ${{ github.ref_name }} - ${{ env.RELEASE_BRAND }}"
-          body_path: release-notes.md
+          name: "ZQAutoNXG ${{ github.ref_name }}"
           draft: false
-          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
+          body_path: release-notes.md
           files: |
             release/zqautonxg-${{ github.ref_name }}.tar.gz
-            release/zqautonxg-${{ github.ref_name }}.zip
             reports/bandit-report.json
             reports/safety-report.json
+            reports/ruff-report.json
+            reports/mypy-report.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+# ==============================================================
+# 4️⃣ Deployment Summary
+# ==============================================================
 
   deployment-summary:
     name: Deployment Summary
     runs-on: ubuntu-latest
-    needs: [security-validation, build-and-test, create-release]
+    needs: [ security-validation, build-and-test, create-release ]
     if: always()
-    
     steps:
       - name: ZQAutoNXG Deployment Summary
         run: |
-          echo "🎉 ZQAutoNXG Deployment Summary"
-          echo "   ${{ env.RELEASE_BRAND }}"
+          echo "🧠 ZQAutoNXG Deployment Summary"
+          echo "────────────────────────────────────────────"
+          echo "Version: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Security Validation: ${{ needs.security-validation.result }}"
+          echo "Build & Test: ${{ needs.build-and-test.result }}"
+          echo "Release: ${{ needs.create-release.result }}"
           echo ""
-          echo "📊 Deployment Statistics:"
-          echo "   • Version: ${{ github.ref_name || 'development' }}"
-          echo "   • Commit: ${{ github.sha }}"
-          echo "   • Security Validation: ${{ needs.security-validation.result }}"
-          echo "   • Build & Test: ${{ needs.build-and-test.result }}"
-          echo "   • Release Creation: ${{ needs.create-release.result || 'skipped' }}"
+          echo "✅ Apache 2.0 License"
+          echo "✅ Security Scanning"
+          echo "✅ Container Hardening"
+          echo "✅ ZQ AI LOGIC™ Branding"
           echo ""
-          echo "🔒 Security & Compliance:"
-          echo "   • Apache 2.0 License: ✅"
-          echo "   • Security Scanning: ✅"
-          echo "   • Container Hardening: ✅"
-          echo "   • ZQ AI LOGIC™ Branding: ✅"
+          echo "🚀 Access your deployment:"
+          echo " → https://ghcr.io/${{ env.IMAGE_REPO }}:latest"
+          echo " → https://github.com/${{ github.repository }}/releases/latest"
           echo ""
-          echo "🚀 Ready for Enterprise Deployment!"
-          echo "   ZQAutoNXG - Next-Generation eXtended Automation Platform"
-          echo "   Powered by ZQ AI LOGIC™"
-          echo "   Copyright © 2025 Zubin Qayam"
-          echo ""
-          echo "🔗 Access your deployment:"
-          echo "   • Container: ghcr.io/${{ toLower(github.repository) }}:latest"
-          echo "   • Repository: https://github.com/${{ github.repository }}"
-          echo "   • Documentation: https://github.com/${{ github.repository }}/blob/main/README.md"
+          echo "ZQAutoNXG – Next-Generation eXtended Automation Platform"
+          echo "Powered by ZQ AI LOGIC™"

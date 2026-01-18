@@ -1,0 +1,148 @@
+{{/*
+Copyright © 2025 Zubin Qayam — ZQAutoNXG Powered by ZQ AI LOGIC
+Licensed under the Apache License, Version 2.0
+*/}}
+{{- if .Values.grafana.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "zqautonxg.fullname" . }}-grafana
+  labels:
+    {{- include "zqautonxg.labels" . | nindent 4 }}
+    app.kubernetes.io/component: visualization
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "zqautonxg.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: visualization
+  template:
+    metadata:
+      labels:
+        {{- include "zqautonxg.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: visualization
+    spec:
+      containers:
+      - name: grafana
+        {{- if .Values.grafana.image.repository }}
+        image: "{{ .Values.grafana.image.repository }}:{{ .Values.grafana.image.tag | default "latest" }}"
+        imagePullPolicy: {{ .Values.grafana.image.pullPolicy | default "IfNotPresent" }}
+        {{- else }}
+        image: {{ .Values.grafana.image | default "grafana/grafana:10.2.3" }}
+        {{- end }}
+        ports:
+        - name: http
+          containerPort: 3000
+          protocol: TCP
+        env:
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "zqautonxg.fullname" . }}-grafana
+              key: admin-password
+        - name: GF_INSTALL_PLUGINS
+          value: ""
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/grafana
+        - name: datasources
+          mountPath: /etc/grafana/provisioning/datasources
+        resources:
+          {{- toYaml .Values.grafana.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: datasources
+        configMap:
+          name: {{ include "zqautonxg.fullname" . }}-grafana-datasources
+      {{- if .Values.grafana.persistence.enabled }}
+      - name: data
+        persistentVolumeClaim:
+          claimName: {{ include "zqautonxg.fullname" . }}-grafana
+      {{- else }}
+      - name: data
+        emptyDir: {}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "zqautonxg.fullname" . }}-grafana
+  labels:
+    {{- include "zqautonxg.labels" . | nindent 4 }}
+    app.kubernetes.io/component: visualization
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "zqautonxg.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: visualization
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "zqautonxg.fullname" . }}-grafana
+  labels:
+    {{- include "zqautonxg.labels" . | nindent 4 }}
+    app.kubernetes.io/component: visualization
+type: Opaque
+data:
+  {{- if .Values.grafana.adminPassword }}
+  admin-password: {{ .Values.grafana.adminPassword | b64enc }}
+  {{- else if .Values.grafana.allowEmptyAdminPassword }}
+  admin-password: {{ "" | b64enc }}
+  {{- else }}
+  {{- fail "grafana.adminPassword must be set to a non-empty value, or grafana.allowEmptyAdminPassword must be true to permit an empty Grafana admin password." }}
+  {{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "zqautonxg.fullname" . }}-grafana-datasources
+  labels:
+    {{- include "zqautonxg.labels" . | nindent 4 }}
+    app.kubernetes.io/component: visualization
+data:
+  datasource.yml: |
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      access: proxy
+      url: http://{{ include "zqautonxg.fullname" . }}-prometheus:9090
+      isDefault: true
+      editable: true
+{{- if .Values.grafana.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "zqautonxg.fullname" . }}-grafana
+  labels:
+    {{- include "zqautonxg.labels" . | nindent 4 }}
+    app.kubernetes.io/component: visualization
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.grafana.persistence.storageClass }}
+  storageClassName: {{ .Values.grafana.persistence.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.grafana.persistence.size }}
+{{- end }}
+{{- end }}
