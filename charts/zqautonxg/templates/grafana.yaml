@@ -96,7 +96,13 @@ metadata:
     app.kubernetes.io/component: visualization
 type: Opaque
 data:
+  {{- if .Values.grafana.adminPassword }}
   admin-password: {{ .Values.grafana.adminPassword | b64enc }}
+  {{- else if .Values.grafana.allowEmptyAdminPassword }}
+  admin-password: {{ "" | b64enc }}
+  {{- else }}
+  {{- fail "grafana.adminPassword must be set to a non-empty value, or grafana.allowEmptyAdminPassword must be true to permit an empty Grafana admin password." }}
+  {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
