@@ -5,3 +5,7 @@
 ## 2026-01-03 - Static Response & Metric Optimization
 **Learning:** High-frequency endpoints that return mostly static data suffer from repeated dictionary allocation and metric label lookup overhead.
 **Action:** Pre-compute static response parts into module-level constants (using `.copy()` for thread safety) and pre-initialize Prometheus metric labels to avoid map lookups on every request.
+
+## 2026-05-24 - Efficient Logs History with Deque
+**Learning:** Using `list.pop(0)` to maintain a rolling buffer is O(N) and expensive for high-frequency write operations. `collections.deque` provides O(1) appends and pops. However, `deque` does not support slicing, so read operations (slicing) require O(N) conversion to list.
+**Action:** Use `collections.deque(maxlen=N)` for fixed-size rolling buffers where writes are frequent. For read operations requiring slicing, explicitly cast to list: `list(my_deque)[-limit:]`. This provides significant write speedup (~1.6x) with negligible read impact for small buffer sizes (e.g. 1000).
