@@ -29,7 +29,8 @@ class LogEntry:
     """Log entry model."""
 
     def __init__(self, level: str, message: str, metadata: dict[str, Any] | None = None):
-        self.timestamp = datetime.now(UTC).isoformat()
+        # Use naive UTC timestamp to preserve legacy ISO 8601 wire format
+        self.timestamp = datetime.utcnow().isoformat()
         self.level = level
         self.message = message
         self.metadata = metadata or {}
