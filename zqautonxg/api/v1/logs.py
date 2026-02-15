@@ -29,8 +29,7 @@ class LogEntry:
     """Log entry model."""
 
     def __init__(self, level: str, message: str, metadata: dict[str, Any] | None = None):
-        # Use naive UTC timestamp to preserve legacy ISO 8601 wire format
-        self.timestamp = datetime.utcnow().isoformat()
+        self.timestamp = datetime.now(UTC).isoformat()
         self.level = level
         self.message = message
         self.metadata = metadata or {}
@@ -66,9 +65,6 @@ async def broadcast_log(log_entry: LogEntry) -> None:
 
         # Handle failures and clean up disconnected clients
         for i, result in enumerate(results):
-            # Propagate cancellation instead of treating it as an error
-            if isinstance(result, asyncio.CancelledError):
-                raise result
             if isinstance(result, Exception):
                 connection = connections[i]
                 logger.error(f"Error broadcasting to connection: {result}")
