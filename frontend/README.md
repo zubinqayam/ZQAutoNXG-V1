@@ -14,6 +14,7 @@ This is a minimal web interface for the ZQAutoNXG platform. It provides basic in
 - Activity logs display
 - Quick access to API documentation
 - Real-time status updates
+- Vercel Web Analytics integration for tracking visitor metrics
 
 ## Usage
 
@@ -49,6 +50,18 @@ The interface connects to the backend API at:
 - Nodes: `/api/v1/nodes`
 - Logs: `/api/v1/logs`
 - Network: `/api/v1/network`
+
+## Analytics
+
+The frontend includes Vercel Web Analytics integration to track visitor metrics and page views. When deployed to Vercel, analytics data will be automatically collected at the `/_vercel/insights/*` routes.
+
+To enable analytics in your Vercel project:
+1. Navigate to your project dashboard on Vercel
+2. Click on the **Analytics** tab
+3. Click **Enable** to activate Web Analytics
+4. Deploy your application - analytics will start tracking automatically
+
+No additional configuration is needed as the analytics script is already integrated into the HTML file.
 
 ## Future Enhancements
 
