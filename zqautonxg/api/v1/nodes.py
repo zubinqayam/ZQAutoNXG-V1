@@ -67,8 +67,8 @@ async def update_node_config(node_id: UUID, config: Dict[str, Any]) -> NodeConfi
     else:
         node = nodes_db[node_id]
         node.config = config
-        from datetime import datetime
-        node.updated_at = datetime.utcnow()
+        from datetime import UTC, datetime
+        node.updated_at = datetime.now(UTC)
     
     logger.info(f"Updated config for node {node_id}")
     return node

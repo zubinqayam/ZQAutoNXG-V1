@@ -66,8 +66,8 @@ async def update_workflow(workflow_id: UUID, update: WorkflowUpdate) -> Workflow
     for field, value in update_data.items():
         setattr(workflow, field, value)
     
-    from datetime import datetime
-    workflow.updated_at = datetime.utcnow()
+    from datetime import UTC, datetime
+    workflow.updated_at = datetime.now(UTC)
     
     logger.info(f"Updated workflow {workflow_id}")
     return workflow
@@ -101,9 +101,9 @@ async def execute_workflow(workflow_id: UUID) -> WorkflowExecution:
     logger.info(f"Started execution {execution.id} for workflow {workflow_id}")
     
     # Simulate execution (in production, this would be async)
-    from datetime import datetime
+    from datetime import UTC, datetime
     execution.status = "success"
-    execution.completed_at = datetime.utcnow()
+    execution.completed_at = datetime.now(UTC)
     execution.duration_ms = 1250
     execution.result = {"status": "completed", "nodes_executed": len(workflows_db[workflow_id].nodes)}
     
