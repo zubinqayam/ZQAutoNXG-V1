@@ -5,7 +5,7 @@
 Node configuration models for ZQAutoNXG platform.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Dict, Optional
 from uuid import UUID, uuid4
 
@@ -18,8 +18,8 @@ class NodeConfig(BaseModel):
     type: str  # scheduler, connector, search, etc.
     config: Dict[str, Any] = Field(default_factory=dict)
     enabled: bool = True
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class SchedulerConfig(BaseModel):
@@ -75,7 +75,7 @@ class RequestHistory(BaseModel):
     response_body: Optional[Dict[str, Any]] = None
     request_headers: Dict[str, str] = Field(default_factory=dict)
     response_headers: Dict[str, str] = Field(default_factory=dict)
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     model_config = {
         "json_schema_extra": {
