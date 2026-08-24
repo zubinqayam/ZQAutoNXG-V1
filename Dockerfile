@@ -39,7 +39,8 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 # Copy ZQAutoNXG application code
-COPY zqautonxg/ ./zqautonxg/\nCOPY frontend/ ./frontend/
+COPY zqautonxg/ ./zqautonxg/
+COPY frontend/ ./frontend/
 
 # Create non-root user for security
 RUN groupadd -r -g 1001 zquser \
