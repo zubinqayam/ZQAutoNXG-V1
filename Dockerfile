@@ -2,7 +2,7 @@
 # Copyright © 2025 Zubin Qayam — ZQAutoNXG Powered by ZQ AI LOGIC
 # Licensed under the Apache License, Version 2.0
 
-FROM python:3.11-slim-bullseye AS base
+FROM python:3.11-slim-bookworm AS base
 
 # Apache 2.0 OCI Labels
 LABEL org.opencontainers.image.title="ZQAutoNXG"
@@ -40,6 +40,7 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 # Copy ZQAutoNXG application code
 COPY zqautonxg/ ./zqautonxg/
+COPY frontend/ ./frontend/
 
 # Create non-root user for security
 RUN groupadd -r -g 1001 zquser \

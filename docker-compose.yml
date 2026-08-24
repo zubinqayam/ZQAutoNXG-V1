@@ -16,7 +16,7 @@ services:
       - APP_NAME=ZQAutoNXG
       - HOST=0.0.0.0
       - PORT=8000
-      - DATABASE_URL=postgresql://zqadmin:zqpassword@postgres:5432/zqautonxg
+      - DATABASE_URL=postgresql://zqadmin:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/zqautonxg
       - REDIS_URL=redis://redis:6379/0
       - CORS_ORIGINS=http://localhost:3000,http://localhost:8080
       - LOG_LEVEL=INFO
@@ -42,7 +42,7 @@ services:
     environment:
       - POSTGRES_DB=zqautonxg
       - POSTGRES_USER=zqadmin
-      - POSTGRES_PASSWORD=zqpassword
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       - POSTGRES_INITDB_ARGS=--encoding=UTF-8
     ports:
       - "5432:5432"
@@ -100,7 +100,7 @@ services:
     container_name: zqautonxg-grafana
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=zqadmin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
       - GF_USERS_ALLOW_SIGN_UP=false
     ports:
       - "3001:3000"
