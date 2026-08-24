@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, generate_latest
-from starlette.responses import Response
+from starlette.responses import FileResponse, Response
 
 from contextlib import asynccontextmanager
 
