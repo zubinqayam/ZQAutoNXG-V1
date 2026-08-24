@@ -3,7 +3,7 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from zqautonxg.app import app
+from zqautonxg.app import app, cors_origins
 
 
 # Set the transport to ASGITransport for direct app testing
@@ -42,3 +42,16 @@ async def test_version(client):
     assert response.status_code == 200
     data = response.json()
     assert "build_date" in data
+
+
+@pytest.mark.asyncio
+async def test_ui(client):
+    response = await client.get("/ui")
+    assert response.status_code == 200
+    assert "ZQAutoNXG" in response.text
+
+
+def test_cors_origins_are_normalized():
+    assert cors_origins
+    assert all(origin == origin.strip() for origin in cors_origins)
+    assert all(origin for origin in cors_origins)
