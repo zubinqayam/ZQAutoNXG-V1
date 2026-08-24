@@ -158,3 +158,6 @@ exclude_lines = [
     'class .*\bProtocol\):',
     '@(abc\.)?abstractmethod',
 ]
+
+[tool.vercel]
+entrypoint = "zqautonxg.app:app"
