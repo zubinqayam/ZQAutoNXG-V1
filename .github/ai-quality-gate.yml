@@ -1,0 +1,158 @@
+# AI Quality Gate — Central Policy Configuration
+# Referenced by .github/scripts/run_ai_quality_gate.py and the workflow.
+
+# ---------------------------------------------------------------------------
+# Path filtering
+# ---------------------------------------------------------------------------
+path_filters:
+  # Paths that are always included when changed
+  include:
+    - "**/*.py"
+    - "**/*.ts"
+    - "**/*.tsx"
+    - "**/*.js"
+    - "**/*.jsx"
+    - "**/*.go"
+    - "**/*.java"
+    - "**/*.yaml"
+    - "**/*.yml"
+    - "**/*.json"
+    - "**/*.toml"
+    - "**/*.sql"
+    - "**/*.sh"
+    - "**/*.bash"
+    - "Dockerfile*"
+    - "docker-compose*.yml"
+    - "requirements*.txt"
+    - "pyproject.toml"
+    - "setup.py"
+    - "setup.cfg"
+    - "package.json"
+    - "go.mod"
+    - "go.sum"
+
+  # Paths that are always excluded — generated, vendored, or binary
+  exclude:
+    - "node_modules/**"
+    - "dist/**"
+    - "build/**"
+    - ".next/**"
+    - "coverage/**"
+    - "__pycache__/**"
+    - "vendor/**"
+    - "generated/**"
+    - "*.min.js"
+    - "*.map"
+    - "*.lock"
+    - "*.log"
+    - "*.csv"
+    - "*.xlsx"
+    - "*.pdf"
+    - "*.exe"
+    - "*.bin"
+    - "*.so"
+    - "*.dylib"
+    - "*.dll"
+    - "snapshots/**"
+    - "local-intelligence/**"
+    - "credentials/**"
+
+  # Trash/branch-only paths: never analyzed even if changed
+  trash_branch_exclusions:
+    - "tmp/**"
+    - ".tmp/**"
+    - "scratch/**"
+    - "*.tmp"
+    - "*.bak"
+    - "*.orig"
+
+# ---------------------------------------------------------------------------
+# Checks the AI reviewer must run
+# ---------------------------------------------------------------------------
+checks:
+  flow_completeness:
+    enabled: true
+    description: >
+      Identify missing API endpoints, unhandled error paths, missing DB
+      migrations, untested branches, unfinished TODOs/FIXMEs, and broken
+      handoffs between frontend, backend, ingestion, and deployment layers.
+
+  innm_pipeline_integrity:
+    enabled: true
+    description: >
+      Verify INNM pipeline correctness: idempotency keys, retry/backoff logic,
+      dead-letter/quarantine handling, audit IDs, hash-chain ledger validation,
+      schema versioning, and workspace isolation boundaries.
+
+  security_secrets:
+    enabled: true
+    description: >
+      Detect hardcoded tokens/passwords/keys, unsafe environment variable
+      exposure, PII or health data in logs or prompts, missing authentication
+      or authorization, permissive CORS configuration, unvalidated file uploads,
+      and raw third-party content persisted without sanitization.
+
+  idempotency:
+    enabled: true
+    description: >
+      Confirm that all write operations (DB inserts, API calls, ledger appends,
+      queue publishes) are guarded by idempotency keys or equivalent deduplication
+      mechanisms.
+
+  workspace_isolation:
+    enabled: true
+    description: >
+      Ensure tenant/workspace boundaries are enforced: no cross-workspace data
+      leakage in queries, embeddings, prompts, or retrieval results without
+      explicit per-tenant authorization.
+
+  ledger_integrity:
+    enabled: true
+    description: >
+      Verify append-only ledger entries include: sequence number, previous hash,
+      canonical payload hash, signing key/version, and UTC timestamps. Check
+      for routine verification job hooks.
+
+  test_coverage:
+    enabled: true
+    description: >
+      Flag new code paths (functions, classes, branches) that lack corresponding
+      unit or integration tests, and highlight untested error/edge paths.
+
+# ---------------------------------------------------------------------------
+# Severity → action mapping
+# ---------------------------------------------------------------------------
+severity_actions:
+  CRITICAL:
+    action: block_merge
+    description: >
+      Immediately fails the required status check, blocking merge.
+      Must be resolved before the PR can be merged.
+
+  HIGH:
+    action: require_resolution
+    description: >
+      Flagged prominently in the PR comment. Does not hard-fail the
+      workflow exit code by default, but must be addressed (or explicitly
+      waived) before merge per team policy.
+
+  MEDIUM:
+    action: advisory_comment
+    description: >
+      Noted in the PR comment as a recommendation. Does not affect
+      merge status.
+
+  LOW:
+    action: advisory_comment
+    description: >
+      Noted in the PR comment as a minor suggestion. Does not affect
+      merge status.
+
+# ---------------------------------------------------------------------------
+# Model configuration
+# ---------------------------------------------------------------------------
+model:
+  provider: anthropic
+  model_id: claude-3-5-sonnet-20241022
+  max_tokens: 4096
+  temperature: 0
