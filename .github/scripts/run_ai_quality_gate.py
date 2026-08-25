@@ -2,18 +2,21 @@
 """AI Quality Gate runner.
 
 Sends a filtered, secret-redacted diff plus the repository policy and
-review prompt to a single configured AI provider, then writes the
-structured findings to an output file consumed by the GitHub Actions
-workflow.
+review prompt to the Gemini API, then writes the structured findings to an
+output file consumed by the GitHub Actions workflow.
 
-Provider is selected via AI_PROVIDER env var (default: openai).
-API key must be supplied via the AI_API_KEY environment variable, sourced
-from a GitHub Actions secret. This script never logs or persists the key.
+API key must be supplied via the GEMINI_API_KEY environment variable,
+sourced from a GitHub Actions secret. This script never logs or persists
+the key.
 """
 import argparse
+import json
 import os
 import re
 import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 
 SECRET_PATTERNS = [
     re.compile(r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*['\"][^'\"]{8,}['\"]"),
@@ -42,7 +45,7 @@ def main() -> int:
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
 
-    api_key = os.environ.get("AI_API_KEY")
+    api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         with open(args.output, "w", encoding="utf-8") as fh:
             fh.write("AI review skipped: no API key configured.\n")
@@ -61,7 +64,7 @@ def main() -> int:
     user_prompt = "## Filtered diff\n\n```diff\n" + diff_text + "\n```"
 
     try:
-        findings = call_ai_provider(system_prompt, user_prompt, api_key)
+        findings = call_gemini(system_prompt, user_prompt, api_key)
     except Exception as exc:  # noqa: BLE001
         findings = f"AI review failed to run: {type(exc).__name__}. See workflow logs."
 
@@ -71,26 +74,61 @@ def main() -> int:
     return 0
 
 
-def call_ai_provider(system_prompt: str, user_prompt: str, api_key: str) -> str:
-    """Call the configured AI provider. Import kept local so the script has
-    no hard dependency when AI review is skipped."""
-    provider = os.environ.get("AI_PROVIDER", "openai").lower()
+def call_gemini(system_prompt: str, user_prompt: str, api_key: str) -> str:
+    """Call the Gemini REST API."""
+    model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+    endpoint = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{urllib.parse.quote(model)}:generateContent?key={urllib.parse.quote(api_key)}"
+    )
+    payload = {
+        "systemInstruction": {
+            "parts": [
+                {
+                    "text": system_prompt,
+                }
+            ]
+        },
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "text": user_prompt,
+                    }
+                ]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0,
+        },
+    }
+    data = json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(
+        endpoint,
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
 
-    if provider == "openai":
-        from openai import OpenAI  # type: ignore
+    try:
+        with urllib.request.urlopen(request, timeout=45) as response:  # noqa: S310
+            response_data = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        response_body = exc.read().decode("utf-8", errors="ignore")
+        raise RuntimeError(f"Gemini HTTP error {exc.code}: {response_body[:500]}") from exc
 
-        client = OpenAI(api_key=api_key)
-        response = client.chat.completions.create(
-            model=os.environ.get("AI_MODEL", "gpt-4.1-mini"),
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0,
-        )
-        return response.choices[0].message.content or "No findings returned."
+    candidates = response_data.get("candidates") or []
+    if not candidates:
+        return "No findings returned."
 
-    raise ValueError(f"Unsupported AI_PROVIDER: {provider}")
+    parts = ((candidates[0].get("content") or {}).get("parts") or [])
+    text_parts = [
+        part.get("text", "")
+        for part in parts
+        if isinstance(part, dict) and part.get("text")
+    ]
+    findings = "\n".join(text_parts).strip()
+    return findings or "No findings returned."
 
 
 if __name__ == "__main__":

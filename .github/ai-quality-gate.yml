@@ -1,5 +1,5 @@
 # AI Quality Gate Policy
-# Central configuration for the single AI review pass on every pull request.
+# Central configuration for the single Gemini AI review pass on every pull request.
 
 version: 1
 
