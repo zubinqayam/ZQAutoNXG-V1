@@ -1,0 +1,116 @@
+# AI Quality Gate Policy
+# Central configuration for the single AI review pass on every pull request.
+
+version: 1
+
+scope:
+  include_paths:
+    - "zqautonxg/**"
+    - "frontend/**"
+    - "backend/**"
+    - "monitoring/**"
+    - ".github/workflows/**"
+    - "docs/**"
+    - "*.py"
+    - "*.ts"
+    - "*.tsx"
+    - "*.js"
+    - "*.yml"
+    - "*.yaml"
+
+  exclude_paths:
+    - "node_modules/**"
+    - "dist/**"
+    - "build/**"
+    - ".next/**"
+    - "coverage/**"
+    - "__pycache__/**"
+    - ".venv/**"
+    - "venv/**"
+    - "**/*.min.js"
+    - "**/*.map"
+    - "**/*.lock"
+    - "**/*.log"
+    - "**/*.csv"
+    - "**/*.xlsx"
+    - "**/*.pdf"
+    - "**/*.png"
+    - "**/*.jpg"
+    - "**/*.jpeg"
+    - "**/*.svg"
+    - "**/*.zip"
+    - "**/*.tar"
+    - "**/*.gz"
+    - "package-lock.json"
+    - "pnpm-lock.yaml"
+    - "yarn.lock"
+    - "poetry.lock"
+    - "uv.lock"
+
+  trigger_events:
+    - opened
+    - synchronize
+    - reopened
+    - ready_for_review
+  target_base_branches:
+    - main
+
+checks:
+  flow_completeness:
+    description: >
+      Detect missing endpoints, unhandled error paths, missing DB migrations,
+      untested branches, unfinished TODOs, and broken handoffs between
+      frontend, backend, ingestion (WOSDS/Meaning Engine/PowerBox), and deployment.
+    severity_if_violated: HIGH
+
+  innm_pipeline_integrity:
+    description: >
+      Validate the INNM pipeline stages are present and ordered correctly:
+      Notion/BI source -> change detection -> WOSDS normalization ->
+      Meaning Engine validation -> PowerBox intelligence -> append-only ledger
+      -> snapshots/patterns/monitoring. Flag skipped stages, missing
+      idempotency keys, and missing hash-chain fields.
+    severity_if_violated: HIGH
+
+  security_and_secrets:
+    description: >
+      Flag hard-coded tokens/API keys, unsafe env var exposure, PII/health
+      data in logs, missing auth checks, permissive CORS, unvalidated file
+      uploads, and raw Notion content persisted outside intended boundaries.
+    severity_if_violated: CRITICAL
+
+  idempotency_and_resilience:
+    description: >
+      Require idempotency keys (workspace_id + entry_id + content hash),
+      retry with exponential backoff, dead-letter/quarantine handling for
+      failed ledger writes, and no silent auto-correction without an audit
+      trail.
+    severity_if_violated: HIGH
+
+  workspace_isolation:
+    description: >
+      Confirm cross-workspace pattern learning does not mix embeddings,
+      prompts, or retrieval results across tenant/workspace boundaries
+      without explicit authorization.
+    severity_if_violated: HIGH
+
+  ledger_integrity:
+    description: >
+      Confirm ledger writes include sequence number, previous hash,
+      canonical payload hash, timestamp (UTC), and signing key/version.
+    severity_if_violated: MEDIUM
+
+  test_coverage:
+    description: >
+      Flag new logic paths (ingestion, drift detection, self-healing)
+      introduced without accompanying tests in tests/.
+    severity_if_violated: MEDIUM
+
+severity_policy:
+  CRITICAL: block_merge
+  HIGH: require_resolution_comment
+  MEDIUM: advisory
+  LOW: advisory
+
+output_format:
+  finding_prefix_pattern: "^(CRITICAL|HIGH|MEDIUM|LOW): "
