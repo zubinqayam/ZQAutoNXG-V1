@@ -1,6 +1,7 @@
 import importlib.util
 import json
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / ".github" / "scripts" / "run_ai_quality_gate.py"
@@ -26,8 +27,10 @@ class _FakeHTTPResponse:
 
 def test_call_gemini_returns_joined_text_parts(monkeypatch):
     def _fake_urlopen(request, timeout=45):  # noqa: ARG001
-        assert "generativelanguage.googleapis.com" in request.full_url
-        assert ":generateContent?key=test-key" in request.full_url
+        parsed_url = urlparse(request.full_url)
+        assert parsed_url.netloc == "generativelanguage.googleapis.com"
+        assert parsed_url.path.endswith(":generateContent")
+        assert parsed_url.query == "key=test-key"
         return _FakeHTTPResponse(
             {
                 "candidates": [
