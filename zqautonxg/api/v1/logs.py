@@ -1,39 +1,41 @@
 # Copyright © 2025 Zubin Qayam — ZQAutoNXG Powered by ZQ AI LOGIC
 # Licensed under the Apache License, Version 2.0
 
-"""
-Logs API router with WebSocket support.
-"""
+"""Logs API router with bounded history and WebSocket support."""
 
 import asyncio
 import json
 import logging
-from datetime import datetime
-from typing import Any, Dict, List
+import random
+from collections import deque
+from datetime import datetime, timezone
+from typing import Any
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 logger = logging.getLogger("zqautonxg.api.logs")
 router = APIRouter(prefix="/logs", tags=["logs"])
 
-# In-memory log storage (last 1000 entries)
-logs_history: List[Dict[str, Any]] = []
 MAX_LOGS_HISTORY = 1000
-
-# Active WebSocket connections
-active_connections: List[WebSocket] = []
+logs_history: deque[dict[str, Any]] = deque(maxlen=MAX_LOGS_HISTORY)
+active_connections: list[WebSocket] = []
 
 
 class LogEntry:
-    """Log entry model."""
-    
-    def __init__(self, level: str, message: str, metadata: Dict[str, Any] = None):
-        self.timestamp = datetime.utcnow().isoformat()
-        self.level = level
+    """Serializable application log entry."""
+
+    def __init__(
+        self,
+        level: str,
+        message: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        self.timestamp = datetime.now(timezone.utc).isoformat()
+        self.level = level.upper()
         self.message = message
         self.metadata = metadata or {}
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "timestamp": self.timestamp,
             "level": self.level,
@@ -42,110 +44,118 @@ class LogEntry:
         }
 
 
+async def _send_log(connection: WebSocket, message: str) -> Exception | None:
+    try:
+        await asyncio.wait_for(connection.send_text(message), timeout=5)
+    except Exception as exc:
+        return exc
+    return None
+
+
 async def broadcast_log(log_entry: LogEntry) -> None:
-    """Broadcast log entry to all connected WebSocket clients."""
-    message = json.dumps(log_entry.to_dict())
-    
-    # Store in history
-    logs_history.append(log_entry.to_dict())
-    if len(logs_history) > MAX_LOGS_HISTORY:
-        logs_history.pop(0)
-    
-    # Broadcast to all connections
-    disconnected = []
-    for connection in active_connections:
-        try:
-            await connection.send_text(message)
-        except Exception as e:
-            logger.error(f"Error broadcasting to connection: {e}")
-            disconnected.append(connection)
-    
-    # Remove disconnected clients
-    for connection in disconnected:
-        active_connections.remove(connection)
+    """Store a log entry and broadcast it concurrently to connected clients."""
+    log_dict = log_entry.to_dict()
+    logs_history.append(log_dict)
+
+    connections = list(active_connections)
+    if not connections:
+        return
+
+    message = json.dumps(log_dict)
+    results = await asyncio.gather(
+        *(_send_log(connection, message) for connection in connections)
+    )
+    for connection, result in zip(connections, results):
+        if result is not None:
+            logger.warning("Removing failed log WebSocket: %s", result)
+            if connection in active_connections:
+                active_connections.remove(connection)
 
 
 @router.websocket("/ws")
 async def logs_websocket(websocket: WebSocket) -> None:
-    """WebSocket endpoint for real-time log streaming."""
+    """Stream recent and new application logs."""
     await websocket.accept()
     active_connections.append(websocket)
-    
-    logger.info(f"New WebSocket connection. Total connections: {len(active_connections)}")
-    
-    # Send recent history
+    logger.info(
+        "New log WebSocket connection. Total connections: %s",
+        len(active_connections),
+    )
+
     try:
-        for log in logs_history[-100:]:  # Send last 100 logs
-            await websocket.send_text(json.dumps(log))
-    except Exception as e:
-        logger.error(f"Error sending history: {e}")
-    
-    try:
-        # Keep connection alive and handle incoming messages
+        for log_entry in list(logs_history)[-100:]:
+            await websocket.send_text(json.dumps(log_entry))
+
         while True:
             data = await websocket.receive_text()
-            # Echo back or handle commands
             await websocket.send_text(json.dumps({"type": "pong", "data": data}))
     except WebSocketDisconnect:
-        active_connections.remove(websocket)
-        logger.info(f"WebSocket disconnected. Total connections: {len(active_connections)}")
-    except Exception as e:
-        logger.error(f"WebSocket error: {e}")
+        pass
+    except Exception:
+        logger.exception("Log WebSocket failed")
+    finally:
         if websocket in active_connections:
             active_connections.remove(websocket)
+        logger.info(
+            "Log WebSocket disconnected. Total connections: %s",
+            len(active_connections),
+        )
 
 
 @router.get("/history")
-async def get_logs_history(limit: int = 100) -> List[Dict[str, Any]]:
-    """Get historical logs."""
-    return logs_history[-limit:]
+async def get_logs_history(
+    limit: int = Query(default=100, ge=1, le=MAX_LOGS_HISTORY),
+) -> list[dict[str, Any]]:
+    """Return the newest bounded log entries."""
+    return list(logs_history)[-limit:]
 
 
 @router.post("/query")
 async def query_logs(
-    level: str = None,
-    search: str = None,
-    limit: int = 100
-) -> List[Dict[str, Any]]:
-    """Query logs with filters."""
-    filtered_logs = logs_history
-    
+    level: str | None = None,
+    search: str | None = None,
+    limit: int = Query(default=100, ge=1, le=MAX_LOGS_HISTORY),
+) -> list[dict[str, Any]]:
+    """Query bounded log history with optional level and text filters."""
+    filtered_logs = list(logs_history)
+
     if level:
-        filtered_logs = [log for log in filtered_logs if log["level"] == level.upper()]
-    
-    if search:
+        normalized_level = level.upper()
         filtered_logs = [
-            log for log in filtered_logs
-            if search.lower() in log["message"].lower()
+            log_entry
+            for log_entry in filtered_logs
+            if log_entry["level"] == normalized_level
         ]
-    
+
+    if search:
+        normalized_search = search.casefold()
+        filtered_logs = [
+            log_entry
+            for log_entry in filtered_logs
+            if normalized_search in log_entry["message"].casefold()
+        ]
+
     return filtered_logs[-limit:]
 
 
-# Background task to generate sample logs for demo
 async def generate_sample_logs() -> None:
-    """Generate sample logs for demonstration."""
-    levels = ["DEBUG", "INFO", "WARN", "ERROR"]
-    messages = [
+    """Generate demo logs only while at least one client is connected."""
+    levels = ("DEBUG", "INFO", "WARN", "ERROR")
+    messages = (
         "Workflow execution started",
         "Node processing completed",
         "API request received",
         "Database connection established",
         "Cache miss for key",
-    ]
-    
+    )
+
     while True:
-        await asyncio.sleep(5)  # Generate a log every 5 seconds
-        
+        await asyncio.sleep(5)
         if active_connections:
-            import random
-            level = random.choice(levels)
-            message = random.choice(messages)
-            
-            log_entry = LogEntry(
-                level=level,
-                message=message,
-                metadata={"node_id": f"node-{random.randint(1, 10)}"}
+            await broadcast_log(
+                LogEntry(
+                    level=random.choice(levels),
+                    message=random.choice(messages),
+                    metadata={"node_id": f"node-{random.randint(1, 10)}"},
+                )
             )
-            
-            await broadcast_log(log_entry)
