@@ -106,7 +106,7 @@ async def test_status_integrations(client):
     expected_integrations = [
         "zq_ai_logic",
         "prometheus",
-        "docker"
+        "container_runtime"
     ]
     
     for integration in expected_integrations:
@@ -153,14 +153,15 @@ async def test_health_endpoint_structure(client):
     assert "platform" in data
     assert "version" in data
     assert "architecture" in data
-    assert "uptime" in data
+    assert "uptime_seconds" in data
     assert "timestamp" in data
     
     # Verify values
     assert data["status"] == "healthy"
     assert data["platform"] == "ZQAutoNXG"
     assert data["version"] == "6.0.0"
-    assert data["uptime"] == "operational"
+    assert isinstance(data["uptime_seconds"], (int, float))
+    assert data["uptime_seconds"] >= 0
     assert isinstance(data["timestamp"], (int, float))
 
 
