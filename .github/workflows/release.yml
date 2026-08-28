@@ -2,10 +2,10 @@ name: ZQAutoNXG Release & CI/CD
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "master"]
     tags: ["v*", "gv*", "*-release"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "master"]
   workflow_dispatch:
 
 concurrency:
@@ -82,7 +82,7 @@ jobs:
         if: steps.detect.outputs.buildable == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "20.20.2"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -91,6 +91,7 @@ jobs:
         working-directory: frontend
         run: |
           npm ci
+          npm audit --omit=dev --audit-level=high
           npm run build
 
       - name: Static frontend validation
@@ -169,6 +170,7 @@ jobs:
           images: ${{ steps.image.outputs.name }}
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=master,enable=${{ github.ref == 'refs/heads/master' }}
             type=sha
             type=ref,event=tag
 
@@ -196,6 +198,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.20.2"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build release UI
+        working-directory: frontend
+        run: |
+          npm ci
+          npm audit --omit=dev --audit-level=high
+          npm run build
+
       - name: Package source release
         shell: bash
         run: |
@@ -204,6 +220,7 @@ jobs:
           mkdir -p "release/${package}"
           cp -r zqautonxg frontend docs "release/${package}/"
           cp requirements.txt pyproject.toml Dockerfile README.md LICENSE "release/${package}/"
+          test -f "release/${package}/frontend/dist/index.html"
           tar -C release -czf "release/${package}.tar.gz" "${package}"
 
       - name: Publish release
