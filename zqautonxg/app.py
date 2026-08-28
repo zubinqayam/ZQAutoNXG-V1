@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 import time
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime, timezone
 from typing import Any
 
@@ -15,7 +16,6 @@ from fastapi.middleware.gzip import GZipMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, generate_latest
 from starlette.responses import FileResponse, Response
 
-from contextlib import asynccontextmanager
 
 # Import API routers
 from zqautonxg.api.v1 import logs, network, nodes, workflows
@@ -36,6 +36,12 @@ APP_NAME = os.getenv("APP_NAME", "ZQAutoNXG")
 APP_VERSION = "6.0.0"
 APP_BRAND = "Powered by ZQ AI LOGIC™"
 APP_DESCRIPTION = "Next-Generation eXtended Automation Platform"
+GIT_COMMIT = (
+    os.getenv("GIT_COMMIT")
+    or os.getenv("VERCEL_GIT_COMMIT_SHA")
+    or os.getenv("GITHUB_SHA")
+    or "unknown"
+)
 
 # Initialize logging
 logging.basicConfig(
@@ -50,13 +56,16 @@ APP_START_TIME = time.time()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan handler."""
-    # Startup
-    asyncio.create_task(logs.generate_sample_logs())
+    """Start and stop application-owned background tasks."""
+    sample_log_task = asyncio.create_task(logs.generate_sample_logs())
     logger.info("ZQAutoNXG platform started successfully")
-    yield
-    # Shutdown
-    logger.info("ZQAutoNXG platform shutting down")
+    try:
+        yield
+    finally:
+        sample_log_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await sample_log_task
+        logger.info("ZQAutoNXG platform shutting down")
 
 
 # Create FastAPI application
@@ -156,17 +165,29 @@ async def root():
 
 @app.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
-    """Health check endpoint"""
+    """Liveness check for the running API process."""
     HEALTH_CHECKS.inc()
-
     return HealthResponse(
         status="healthy",
         platform=APP_NAME,
         version=APP_VERSION,
         architecture="G V2 NovaBase",
-        uptime="operational",
-        timestamp=time.time()
+        uptime_seconds=time.time() - APP_START_TIME,
+        timestamp=time.time(),
     )
+
+
+@app.get("/readyz")
+async def readiness() -> dict[str, Any]:
+    """Readiness check used by container and Kubernetes orchestrators."""
+    return {
+        "status": "ready",
+        "platform": APP_NAME,
+        "version": APP_VERSION,
+        "architecture": "G V2 NovaBase",
+        "git_commit": GIT_COMMIT,
+    }
+
 
 @app.get("/metrics")
 async def metrics():
@@ -180,59 +201,74 @@ async def status() -> StatusResponse:
     now = datetime.now(timezone.utc)
     uptime = time.time() - APP_START_TIME
     
-    # Component health checks
+    # Report unprobed capability modules honestly. Operators can mark them
+    # ready only after wiring real probes through ZQ_COMPONENTS_READY.
+    component_state = (
+        ComponentStatus.READY
+        if os.getenv("ZQ_COMPONENTS_READY", "").lower() in {"1", "true", "yes"}
+        else ComponentStatus.UNKNOWN
+    )
+    component_message = (
+        "Readiness asserted by ZQ_COMPONENTS_READY"
+        if component_state == ComponentStatus.READY
+        else "No runtime readiness probe is configured"
+    )
     components = {
-        "telemetry_mesh": ComponentCheck(
-            status=ComponentStatus.READY,
-            message="Real-time data processing active",
-            last_check=now
-        ),
-        "composer_agent": ComponentCheck(
-            status=ComponentStatus.READY,
-            message="AI-driven workflow generation ready",
-            last_check=now
-        ),
-        "vault_mesh": ComponentCheck(
-            status=ComponentStatus.READY,
-            message="Security management operational",
-            last_check=now
-        ),
-        "policy_engine": ComponentCheck(
-            status=ComponentStatus.READY,
-            message="Policy evaluation active",
-            last_check=now
-        ),
-        "meta_learner": ComponentCheck(
-            status=ComponentStatus.READY,
-            message="Adaptive optimization ready",
-            last_check=now
-        ),
-        "rca_engine": ComponentCheck(
-            status=ComponentStatus.READY,
-            message="Root cause analysis operational",
-            last_check=now
+        name: ComponentCheck(
+            status=component_state,
+            message=component_message,
+            last_check=now,
+        )
+        for name in (
+            "telemetry_mesh",
+            "composer_agent",
+            "vault_mesh",
+            "policy_engine",
+            "meta_learner",
+            "rca_engine",
         )
     }
-    
-    # Integration health checks
+
+    zq_enabled = os.getenv("ZQ_AI_LOGIC_ENABLED", "").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    container_runtime = os.getenv("CONTAINER_RUNTIME")
     integrations = {
         "zq_ai_logic": IntegrationCheck(
-            status=IntegrationStatus.CONFIGURED,
-            message="ZQ AI LOGIC™ integration configured",
-            version="1.0.0"
+            status=(
+                IntegrationStatus.CONFIGURED
+                if zq_enabled
+                else IntegrationStatus.INACTIVE
+            ),
+            message=(
+                "ZQ AI LOGIC integration enabled"
+                if zq_enabled
+                else "ZQ AI LOGIC integration is not enabled"
+            ),
+            version=os.getenv("ZQ_AI_LOGIC_VERSION", "unknown"),
         ),
         "prometheus": IntegrationCheck(
             status=IntegrationStatus.ACTIVE,
-            message="Metrics collection and monitoring active",
-            version="latest"
+            message="Prometheus metrics endpoint is active",
+            version=os.getenv("PROMETHEUS_CLIENT_VERSION", "bundled"),
         ),
-        "docker": IntegrationCheck(
-            status=IntegrationStatus.CONFIGURED,
-            message="Container runtime configured",
-            version="latest"
-        )
+        "container_runtime": IntegrationCheck(
+            status=(
+                IntegrationStatus.CONFIGURED
+                if container_runtime
+                else IntegrationStatus.INACTIVE
+            ),
+            message=(
+                f"Container runtime: {container_runtime}"
+                if container_runtime
+                else "No container runtime was declared"
+            ),
+            version=container_runtime or "unknown",
+        ),
     }
-    
+
     # Determine overall status based on components (single pass)
     overall_status = OverallStatus.HEALTHY
     degraded_components = []
@@ -271,8 +307,8 @@ async def version():
         "architecture": "G V2 NovaBase",
         "brand": APP_BRAND,
         "license": "Apache License 2.0",
-        "build_date": "2025-10-14",
-        "git_commit": os.getenv("GIT_COMMIT", "unknown")
+        "build_date": os.getenv("BUILD_DATE", "unknown"),
+        "git_commit": GIT_COMMIT
     }
 
 

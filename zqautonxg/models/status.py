@@ -118,7 +118,7 @@ class HealthResponse(BaseModel):
     platform: str
     version: str
     architecture: str
-    uptime: str
+    uptime_seconds: float = Field(..., ge=0, description="Process uptime in seconds")
     timestamp: float
 
     model_config = {
@@ -128,7 +128,7 @@ class HealthResponse(BaseModel):
                 "platform": "ZQAutoNXG",
                 "version": "6.0.0",
                 "architecture": "G V2 NovaBase",
-                "uptime": "operational",
+                "uptime_seconds": 3600.5,
                 "timestamp": 1704916800.0
             }
         }

@@ -33,7 +33,7 @@ async def test_status(client):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] in ["healthy", "degraded", "unhealthy"]
-    assert data["components"]["telemetry_mesh"]["status"] == "ready"
+    assert data["components"]["telemetry_mesh"]["status"] in ["ready", "unknown"]
     assert data["integrations"]["prometheus"]["status"] == "active"
 
 @pytest.mark.asyncio
@@ -42,6 +42,7 @@ async def test_version(client):
     assert response.status_code == 200
     data = response.json()
     assert "build_date" in data
+    assert "git_commit" in data
 
 
 @pytest.mark.asyncio
@@ -55,3 +56,12 @@ def test_cors_origins_are_normalized():
     assert cors_origins
     assert all(origin == origin.strip() for origin in cors_origins)
     assert all(origin for origin in cors_origins)
+
+
+@pytest.mark.asyncio
+async def test_readiness(client):
+    response = await client.get("/readyz")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ready"
+    assert "git_commit" in data
