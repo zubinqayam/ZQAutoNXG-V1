@@ -1,0 +1,56 @@
+{
+  "build": {
+    "beforeDevCommand": "npm --prefix ../frontend run dev",
+    "beforeBuildCommand": "npm --prefix ../frontend run build",
+    "devPath": "http://localhost:1420",
+    "distDir": "../frontend/dist",
+    "withGlobalTauri": true
+  },
+  "package": {
+    "productName": "zqautonxg-desktop",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true,
+        "sidecar": true
+      }
+    },
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "identifier": "com.zqautonxg.desktop",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      // The 'zqautonxg-backend' binary is a compiled Python application built using PyInstaller.
+      // To build it, run 'pyinstaller backend/main.py --onefile --name zqautonxg-backend' from the project root.
+      // For more details, see 'backend/README.md'.
+      "externalBin": [
+        "zqautonxg-backend"
+      ],
+      // The 'zqautonxg-backend' binary is a compiled Python application built using PyInstaller.
+      // To build it, run 'pyinstaller backend/main.py --onefile --name zqautonxg-backend' from the project root.
+      // For more details, see 'backend/README.md'.
+    },
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:8000"
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "resizable": true,
+        "title": "ZQAutoNXG",
+        "width": 1200,
+        "height": 800
+      }
+    ]
+  }
+}
