@@ -84,7 +84,6 @@ jobs:
             --set postgres.password=ci-placeholder \
             --set redis.password=ci-placeholder \
             --set grafana.adminPassword=ci-placeholder \
-            --set serviceAccount.annotations={} \
             > /tmp/zqautonxg-enterprise.yaml
           test -s /tmp/zqautonxg-enterprise.yaml
 
