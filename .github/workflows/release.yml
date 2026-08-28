@@ -38,7 +38,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
           python -m pip install -e .
-          python -m pip install pytest==8.3.4 flake8==7.1.1 bandit ruff
+          python -m pip install "pytest>=8.4,<10" flake8==7.1.1 bandit ruff
 
       - name: Validate Python sources
         run: |
@@ -49,8 +49,7 @@ jobs:
         run: python -m pytest -q
 
       - name: Security scan
-        run: |
-          bandit -q -r zqautonxg -f json -o bandit-report.json || true
+        run: bandit -q -r zqautonxg -f json -o bandit-report.json || true
 
       - name: Upload security report
         if: always()
