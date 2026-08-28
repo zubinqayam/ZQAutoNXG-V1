@@ -17,7 +17,8 @@ imagePullSecrets:
 serviceAccount:
   create: true
   annotations:
-    # REQUIRED: Replace ACCOUNT_ID with your AWS account ID before deployment
+    # REQUIRED: Replace ACCOUNT_ID with your AWS account ID before deployment.
+    # Remove this annotation entirely when not deploying to EKS with IRSA.
     eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/zqautonxg-role"
 
 podAnnotations:
@@ -77,7 +78,7 @@ postgres:
   database: zqautonxg
   username: zquser
   # SECURITY: Set a strong password via --set postgres.password=<secure-password>
-  # or use an external secret manager (e.g., External Secrets Operator)
+  # or use an approved external-secret workflow before installation.
   password: ""  # REQUIRED: Must be set before deployment
   persistence:
     enabled: true
@@ -96,8 +97,8 @@ redis:
   enabled: true
   image: redis:7-alpine
   port: 6379
-  # SECURITY: Set a strong password via --set redis.password=<secure-password>
-  # or use an external secret manager (e.g., External Secrets Operator)
+  # SECURITY: Redis cannot be enabled without a password. Set one with
+  # --set redis.password=<secure-password> or an approved secret workflow.
   password: ""  # REQUIRED: Must be set before deployment
   persistence:
     enabled: true
@@ -136,7 +137,7 @@ prometheus:
 grafana:
   enabled: true
   # SECURITY: Set a strong admin password via --set grafana.adminPassword=<secure-password>
-  # or use an external secret manager (e.g., External Secrets Operator)
+  # or use an approved external-secret workflow before installation.
   adminPassword: ""  # REQUIRED: Must be set before deployment
   image:
     repository: grafana/grafana
@@ -173,28 +174,18 @@ otel:
         cpu: 500m
         memory: 1Gi
 
-# Multi-tenant Enterprise Configuration
+# Multi-tenant isolation is intentionally disabled. The current chart deploys one
+# release into one namespace and does not yet render per-tenant namespaces, RBAC,
+# NetworkPolicies, quotas, or isolated workloads. Deploy a separate Helm release
+# per tenant until those controls are implemented and validated.
 multiTenant:
-  enabled: true
+  enabled: false
   isolation: namespace
-  tenants:
-    - name: tenant-oman
-      namespace: zqautonxg-oman
-      quota:
-        cpu: "10"
-        memory: "20Gi"
-    - name: tenant-uae
-      namespace: zqautonxg-uae
-      quota:
-        cpu: "10"
-        memory: "20Gi"
-    - name: tenant-ksa
-      namespace: zqautonxg-ksa
-      quota:
-        cpu: "10"
-        memory: "20Gi"
+  tenants: []
 
-# Enterprise Environment Variables
+# Enterprise Environment Variables. PostgreSQL/Redis connection primitives are
+# injected by deployment.yaml from release-scoped chart Secrets when enabled;
+# do not reference an undeclared fixed-name zqautonxg-secrets Secret here.
 env:
   - name: ZQ_MODE
     value: "production"
@@ -210,16 +201,6 @@ env:
     value: "true"
   - name: ZQ_COMPLIANCE_MODE
     value: "SOC2,ISO27001"
-  - name: DATABASE_URL
-    valueFrom:
-      secretKeyRef:
-        name: zqautonxg-secrets
-        key: database-url
-  - name: REDIS_URL
-    valueFrom:
-      secretKeyRef:
-        name: zqautonxg-secrets
-        key: redis-url
 
 # Node affinity for production workloads
 nodeSelector:
