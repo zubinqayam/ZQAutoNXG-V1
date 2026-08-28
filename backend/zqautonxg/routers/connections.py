@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -14,7 +15,11 @@ router = APIRouter(
 def create_connection(connection: schemas.ConnectionCreate, db: Session = Depends(get_db)):
     db_connection = models.Connection(**connection.model_dump())
     db.add(db_connection)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="A connection with this name already exists.")
     db.refresh(db_connection)
     return db_connection
 
