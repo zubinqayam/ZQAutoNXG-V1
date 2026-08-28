@@ -1,16 +1,15 @@
 # Copyright © 2025 Zubin Qayam — ZQAutoNXG Powered by ZQ AI LOGIC
 # Licensed under the Apache License, Version 2.0
 #
-# Default values for ZQAutoNXG
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
+# Default values for ZQAutoNXG.
+# Secrets are intentionally empty and must be supplied by deployment tooling
+# when the corresponding optional service is enabled.
 
 replicaCount: 2
 
 image:
   repository: zqautonxg
   pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
 
 imagePullSecrets: []
@@ -18,12 +17,8 @@ nameOverride: ""
 fullnameOverride: ""
 
 serviceAccount:
-  # Specifies whether a service account should be created
   create: true
-  # Annotations to add to the service account
   annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
   name: ""
 
 podAnnotations: {}
@@ -50,18 +45,12 @@ ingress:
   enabled: false
   className: nginx
   annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-    # cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
     - host: api.zqautonxg.local
       paths:
         - path: /
           pathType: Prefix
   tls: []
-  #  - secretName: zqautonxg-tls
-  #    hosts:
-  #      - api.zqautonxg.local
 
 resources:
   limits:
@@ -86,14 +75,13 @@ persistence:
   size: 1Gi
   mountPath: /app/data
 
-# PostgreSQL configuration
 postgres:
   enabled: false
   image: postgres:15-alpine
   port: 5432
   database: zqautonxg
   username: zquser
-  password: zqpass
+  password: ""
   persistence:
     enabled: false
     size: 5Gi
@@ -106,7 +94,6 @@ postgres:
       cpu: 250m
       memory: 512Mi
 
-# Redis configuration
 redis:
   enabled: false
   image: redis:7-alpine
@@ -124,7 +111,6 @@ redis:
       cpu: 100m
       memory: 256Mi
 
-# Prometheus configuration
 prometheus:
   enabled: false
   serviceMonitor:
@@ -145,10 +131,9 @@ prometheus:
       cpu: 500m
       memory: 1Gi
 
-# Grafana configuration
 grafana:
   enabled: false
-  adminPassword: zqadmin
+  adminPassword: ""
   image:
     repository: grafana/grafana
     tag: "10.2.3"
@@ -167,7 +152,6 @@ grafana:
       cpu: 250m
       memory: 256Mi
 
-# OpenTelemetry configuration
 otel:
   enabled: false
   endpoint: "http://otel-collector:4317"
@@ -186,13 +170,11 @@ otel:
         cpu: 100m
         memory: 128Mi
 
-# Multi-tenant configuration
 multiTenant:
   enabled: false
   isolation: namespace
   tenants: []
 
-# Environment variables
 env:
   - name: ZQ_MODE
     value: "production"
@@ -203,11 +185,6 @@ env:
   - name: ZQ_SAFE_EXECUTION
     value: "true"
 
-# Node selector
 nodeSelector: {}
-
-# Tolerations
 tolerations: []
-
-# Affinity
 affinity: {}
