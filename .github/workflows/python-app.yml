@@ -30,19 +30,19 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install flake8==7.1.1 pytest==8.3.4
           python -m pip install -r requirements.txt
           python -m pip install -e .
+          python -m pip install "pytest>=8.4,<10" flake8==7.1.1
       - name: Validate Python sources
         run: |
           python -m compileall -q zqautonxg tests
           flake8 zqautonxg tests --count --select=E9,F63,F7,F82 --show-source --statistics
       - name: Run tests
-        run: pytest -q
+        run: python -m pytest -q
 
   container-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Build production image
@@ -52,7 +52,7 @@ jobs:
         run: |
           set -euo pipefail
           docker run --detach --name zqautonxg-ci --publish 8000:8000 zqautonxg:ci
-          trap 'docker logs zqautonxg-ci; docker rm --force zqautonxg-ci >/dev/null 2>&1 || true' EXIT
+          trap 'docker logs zqautonxg-ci || true; docker rm --force zqautonxg-ci >/dev/null 2>&1 || true' EXIT
           for attempt in {1..30}; do
             if curl --fail --silent --show-error http://127.0.0.1:8000/health >/dev/null; then
               break
@@ -64,4 +64,6 @@ jobs:
             sleep 1
           done
           curl --fail --silent --show-error http://127.0.0.1:8000/ >/dev/null
+          curl --fail --silent --show-error http://127.0.0.1:8000/readyz >/dev/null
+          curl --fail --silent --show-error http://127.0.0.1:8000/api/v1/workflows >/dev/null
           curl --fail --silent --show-error http://127.0.0.1:8000/ui >/dev/null
