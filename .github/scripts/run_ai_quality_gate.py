@@ -18,16 +18,38 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-SECRET_PATTERNS = [
-    re.compile(r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*['\"][^'\"]{8,}['\"]"),
-    re.compile(r"sk-[A-Za-z0-9]{20,}"),
-    re.compile(r"ghp_[A-Za-z0-9]{30,}"),
-    re.compile(r"ssh-(rsa|ed25519|ecdsa)[^\n]+"),
+SECRET_ASSIGNMENT = re.compile(
+    r"(?im)\b(?P<key>[A-Z0-9_.-]*(?:API[_-]?KEY|SECRET|TOKEN|PASSWORD|PASSWD|PWD)[A-Z0-9_.-]*)"
+    r"\s*(?P<sep>[:=])\s*(?P<quote>['\"]?)(?P<value>[^\s,'\"}\]]{8,})(?P=quote)"
+)
+CONNECTION_CREDENTIALS = re.compile(
+    r"(?i)\b(?P<scheme>postgres(?:ql)?|mysql|mariadb|redis|mongodb(?:\+srv)?):\/\/"
+    r"(?P<credentials>[^@\s]+)@"
+)
+BEARER_TOKEN = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{12,}")
+PRIVATE_KEY = re.compile(
+    r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----",
+    re.DOTALL,
+)
+TOKEN_PATTERNS = [
+    re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
+    re.compile(r"gh[pousr]_[A-Za-z0-9]{30,}"),
 ]
 
 
 def redact(text: str) -> str:
-    for pattern in SECRET_PATTERNS:
+    """Mask common quoted/unquoted secrets before any external AI call."""
+    text = SECRET_ASSIGNMENT.sub(
+        lambda match: f"{match.group('key')}{match.group('sep')}[REDACTED-SECRET]",
+        text,
+    )
+    text = CONNECTION_CREDENTIALS.sub(
+        lambda match: f"{match.group('scheme')}://[REDACTED-CREDENTIALS]@",
+        text,
+    )
+    text = BEARER_TOKEN.sub("Bearer [REDACTED-SECRET]", text)
+    text = PRIVATE_KEY.sub("[REDACTED-PRIVATE-KEY]", text)
+    for pattern in TOKEN_PATTERNS:
         text = pattern.sub("[REDACTED-SECRET]", text)
     return text
 
