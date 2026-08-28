@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 from typing import List
 
 from .. import models, schemas
@@ -19,7 +19,7 @@ def create_connection(connection: schemas.ConnectionCreate, db: Session = Depend
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=409, detail="A connection with this name already exists")
+        raise HTTPException(status_code=409, detail="A connection with this name already exists.")
     db.refresh(db_connection)
     return db_connection
 

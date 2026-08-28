@@ -30,6 +30,9 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
+      // The 'zqautonxg-backend' binary is a compiled Python application built using PyInstaller.
+      // To build it, run 'pyinstaller backend/main.py --onefile --name zqautonxg-backend' from the project root.
+      // For more details, see 'backend/README.md'.
       "externalBin": [
         "zqautonxg-backend"
       ],
