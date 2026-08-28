@@ -83,17 +83,19 @@ spec:
             value: {{ include "zqautonxg.redis.host" . }}
           - name: REDIS_PORT
             value: {{ .Values.redis.port | quote }}
-          {{- if .Values.redis.password }}
           - name: REDIS_PASSWORD
             valueFrom:
               secretKeyRef:
                 name: {{ include "zqautonxg.fullname" . }}-redis
                 key: password
           {{- end }}
-          {{- end }}
           {{- if .Values.otel.enabled }}
           - name: OTEL_EXPORTER_OTLP_ENDPOINT
-            value: {{ .Values.otel.endpoint }}
+            {{- if .Values.otel.collector.enabled }}
+            value: "http://{{ include "zqautonxg.fullname" . }}-otel-collector:4317"
+            {{- else }}
+            value: {{ .Values.otel.endpoint | quote }}
+            {{- end }}
           - name: OTEL_SERVICE_NAME
             value: {{ .Values.otel.serviceName }}
           {{- end }}
