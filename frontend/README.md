@@ -14,6 +14,7 @@ This is a minimal web interface for the ZQAutoNXG platform. It provides basic in
 - Activity logs display
 - Quick access to API documentation
 - Real-time status updates
+- **Vercel Speed Insights integration** - Automatic Web Vitals monitoring when deployed to Vercel
 
 ## Usage
 
@@ -49,6 +50,31 @@ The interface connects to the backend API at:
 - Nodes: `/api/v1/nodes`
 - Logs: `/api/v1/logs`
 - Network: `/api/v1/network`
+
+## Vercel Speed Insights
+
+The frontend includes Vercel Speed Insights tracking to monitor Web Vitals performance metrics when deployed to Vercel.
+
+### Setup
+
+Speed Insights is already integrated into the HTML frontend. To enable it:
+
+1. **Enable on Vercel Dashboard**
+   - Go to your [Vercel Dashboard](https://vercel.com/dashboard)
+   - Select the ZQAutoNXG project
+   - Click the **Speed Insights** tab
+   - Click **Enable**
+
+2. **Deploy to Vercel**
+   ```bash
+   vercel deploy
+   ```
+
+3. **View Metrics**
+   - After deployment and user visits, metrics will appear in your Speed Insights dashboard
+   - Access them from the **Speed Insights** tab in your project settings
+
+For detailed setup and usage instructions, see [docs/SPEED_INSIGHTS.md](../docs/SPEED_INSIGHTS.md).
 
 ## Future Enhancements
 
