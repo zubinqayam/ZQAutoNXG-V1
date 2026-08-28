@@ -25,6 +25,35 @@ class _FakeHTTPResponse:
         return json.dumps(self._payload).encode("utf-8")
 
 
+def test_redact_masks_quoted_and_unquoted_assignments():
+    source = (
+        "POSTGRES_PASSWORD=super-secret-value\n"
+        'api_key: "abcdefghijklmnop"\n'
+        "token: abcdefghijklmnop\n"
+    )
+
+    redacted = run_ai_quality_gate.redact(source)
+
+    assert "super-secret-value" not in redacted
+    assert "abcdefghijklmnop" not in redacted
+    assert "POSTGRES_PASSWORD=[REDACTED-SECRET]" in redacted
+    assert "api_key:[REDACTED-SECRET]" in redacted
+    assert "token:[REDACTED-SECRET]" in redacted
+
+
+def test_redact_masks_connection_credentials_and_bearer_tokens():
+    source = (
+        "DATABASE_URL=postgresql://user:very-secret-password@db:5432/app\n"
+        "Authorization: Bearer abcdefghijklmnopqrstuvwxyz123456\n"
+    )
+
+    redacted = run_ai_quality_gate.redact(source)
+
+    assert "very-secret-password" not in redacted
+    assert "abcdefghijklmnopqrstuvwxyz123456" not in redacted
+    assert "[REDACTED" in redacted
+
+
 def test_call_gemini_returns_joined_text_parts(monkeypatch):
     def _fake_urlopen(request, timeout=45):  # noqa: ARG001
         parsed_url = urlparse(request.full_url)
