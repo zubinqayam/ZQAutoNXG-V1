@@ -2,9 +2,9 @@ name: Platform Validation
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "master"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "master"]
 
 permissions:
   contents: read
@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "20.20.2"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
@@ -43,7 +43,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "20.20.2"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Build frontend assets
@@ -81,6 +81,26 @@ jobs:
         run: helm lint ./charts/zqautonxg
       - name: Render default chart
         run: helm template zqautonxg ./charts/zqautonxg > /tmp/zqautonxg-default.yaml
+      - name: Render ephemeral PostgreSQL and Redis profile
+        run: |
+          helm template zqautonxg ./charts/zqautonxg \
+            --set postgres.enabled=true \
+            --set postgres.password=ci-placeholder \
+            --set postgres.persistence.enabled=false \
+            --set redis.enabled=true \
+            --set redis.password=ci-placeholder \
+            --set redis.persistence.enabled=false \
+            > /tmp/zqautonxg-ephemeral.yaml
+          test -s /tmp/zqautonxg-ephemeral.yaml
+          grep -q 'kind: StatefulSet' /tmp/zqautonxg-ephemeral.yaml
+          grep -q 'emptyDir: {}' /tmp/zqautonxg-ephemeral.yaml
+      - name: Reject enabled Redis without a password
+        run: |
+          if helm template zqautonxg ./charts/zqautonxg --set redis.enabled=true >/tmp/redis-unsafe.yaml 2>/tmp/redis-unsafe.err; then
+            echo "Redis rendered without a required password"
+            exit 1
+          fi
+          grep -q 'redis.password must be set' /tmp/redis-unsafe.err
       - name: Render enterprise chart with CI-only credentials
         run: |
           helm template zqautonxg ./charts/zqautonxg \
@@ -90,6 +110,10 @@ jobs:
             --set grafana.adminPassword=ci-placeholder \
             > /tmp/zqautonxg-enterprise.yaml
           test -s /tmp/zqautonxg-enterprise.yaml
+          if grep -q 'name: zqautonxg-secrets' /tmp/zqautonxg-enterprise.yaml; then
+            echo "Enterprise chart still references an undeclared fixed-name secret"
+            exit 1
+          fi
 
   compose:
     name: Docker Compose Contract
