@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 
 // Simple API client
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 interface SystemStatus {

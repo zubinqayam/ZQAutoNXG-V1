@@ -1,11 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 from datetime import datetime
 
 class FlowBase(BaseModel):
     name: str
     description: Optional[str] = None
-    definition: Dict[str, Any] = {}
+    definition: Dict[str, Any] = Field(default_factory=dict)
 
 class FlowCreate(FlowBase):
     pass
@@ -43,8 +43,11 @@ class ConnectionBase(BaseModel):
 class ConnectionCreate(ConnectionBase):
     pass
 
-class Connection(ConnectionBase):
+class Connection(BaseModel):
+    """Response schema for Connection — config is intentionally omitted to avoid leaking secrets."""
     id: int
+    name: str
+    type: str
     created_at: datetime
 
     class Config:

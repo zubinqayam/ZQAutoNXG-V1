@@ -1,7 +1,7 @@
 {
   "build": {
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm --prefix ../frontend run dev",
+    "beforeBuildCommand": "npm --prefix ../frontend run build",
     "devPath": "http://localhost:1420",
     "distDir": "../frontend/dist",
     "withGlobalTauri": true
@@ -32,10 +32,13 @@
       ],
       "externalBin": [
         "zqautonxg-backend"
-      ]
+      ],
+      // The 'zqautonxg-backend' binary is a compiled Python application built using PyInstaller.
+      // To build it, run 'pyinstaller backend/main.py --onefile --name zqautonxg-backend' from the project root.
+      // For more details, see 'backend/README.md'.
     },
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:8000"
     },
     "windows": [
       {

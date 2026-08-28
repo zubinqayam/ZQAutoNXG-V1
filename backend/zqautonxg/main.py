@@ -45,6 +45,7 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+# Ports: 3000 = legacy/alternate dev server, 8080 = production proxy, 1420 = Tauri desktop app
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080,http://localhost:1420").split(","),

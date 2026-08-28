@@ -1,36 +1,39 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::api::process::{Command, CommandEvent};
 use tauri::Manager;
+
+#[cfg(not(debug_assertions))]
+use tauri::api::process::{Command, CommandEvent};
 
 fn main() {
   tauri::Builder::default()
     .setup(|app| {
-        // This is where we would start the sidecar
-        // For development, we usually run the backend separately
-        // But in production, we'd spawn the sidecar here
-
         let window = app.get_window("main").unwrap();
 
-        // Example of starting a sidecar (needs configuration in tauri.conf.json)
-
-        let (mut rx, _child) = Command::new_sidecar("zqautonxg-backend")
-            .expect("failed to create `zqautonxg-backend` binary command")
-            .spawn()
-            .expect("Failed to spawn sidecar");
-
-        tauri::async_runtime::spawn(async move {
-            // read events such as stdout
-            while let Some(event) = rx.recv().await {
-                if let CommandEvent::Stdout(line) = event {
-                    window
-                        .emit("message", Some(format!("'{}'", line)))
-                        .expect("failed to emit event");
+        // In production, spawn the sidecar backend process.
+        // In development, run the backend separately (e.g., `uvicorn zqautonxg.main:app --reload`).
+        #[cfg(not(debug_assertions))]
+        {
+            match Command::new_sidecar("zqautonxg-backend")
+                .and_then(|cmd| cmd.spawn())
+            {
+                Ok((mut rx, _child)) => {
+                    tauri::async_runtime::spawn(async move {
+                        while let Some(event) = rx.recv().await {
+                            if let CommandEvent::Stdout(line) = event {
+                                window
+                                    .emit("message", Some(format!("'{}'", line)))
+                                    .expect("failed to emit event");
+                            }
+                        }
+                    });
+                }
+                Err(e) => {
+                    eprintln!("Failed to spawn zqautonxg-backend sidecar: {}", e);
                 }
             }
-        });
-
+        }
 
         Ok(())
     })
