@@ -81,7 +81,7 @@ cors_origins = [
     for origin in os.getenv(
         "CORS_ORIGINS",
         "http://localhost:3000,http://localhost:5173,http://localhost:8080,"
-        "http://localhost:1420,tauri://localhost",
+        "http://localhost:1420,http://127.0.0.1:1420,tauri://localhost",
     ).split(",")
     if origin.strip()
 ]
@@ -101,12 +101,12 @@ app.include_router(nodes.router, prefix="/api/v1")
 app.include_router(logs.router, prefix="/api/v1")
 app.include_router(network.router, prefix="/api/v1")
 
-# Production UI is the compiled Vite application. The source index remains a
-# development/test fallback so `/ui` is always a deterministic health surface.
+# Production UI is always the compiled Vite application. Source Vite entrypoints
+# are never served by FastAPI because the backend does not expose /src/* modules.
 repository_root = os.path.dirname(os.path.dirname(__file__))
-frontend_path = os.path.join(repository_root, "frontend")
-frontend_dist_path = os.path.join(frontend_path, "dist")
+frontend_dist_path = os.path.join(repository_root, "frontend", "dist")
 frontend_assets_path = os.path.join(frontend_dist_path, "assets")
+frontend_index_path = os.path.join(frontend_dist_path, "index.html")
 
 if os.path.isdir(frontend_assets_path):
     app.mount(
@@ -117,16 +117,12 @@ if os.path.isdir(frontend_assets_path):
 
 
 def _frontend_index() -> str | None:
-    candidates = (
-        os.path.join(frontend_dist_path, "index.html"),
-        os.path.join(frontend_path, "index.html"),
-    )
-    return next((path for path in candidates if os.path.isfile(path)), None)
+    return frontend_index_path if os.path.isfile(frontend_index_path) else None
 
 
 @app.get("/ui", include_in_schema=False)
 async def serve_ui():
-    """Serve the production React control plane or its source fallback."""
+    """Serve the compiled production React control plane when available."""
     index_path = _frontend_index()
     if index_path:
         return FileResponse(index_path)
