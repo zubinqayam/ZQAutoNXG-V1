@@ -8,7 +8,7 @@ class Flow(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
     description = Column(String, nullable=True)
-    definition = Column(JSON, default={})  # The graph/workflow definition
+    definition = Column(JSON, default=dict)  # The graph/workflow definition
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
