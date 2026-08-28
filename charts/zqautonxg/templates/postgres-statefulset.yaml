@@ -63,6 +63,11 @@ spec:
             - pg_isready -U {{ .Values.postgres.username }}
           initialDelaySeconds: 5
           periodSeconds: 5
+      {{- if not .Values.postgres.persistence.enabled }}
+      volumes:
+      - name: data
+        emptyDir: {}
+      {{- end }}
   {{- if .Values.postgres.persistence.enabled }}
   volumeClaimTemplates:
   - metadata:
@@ -76,9 +81,5 @@ spec:
       resources:
         requests:
           storage: {{ .Values.postgres.persistence.size }}
-  {{- else }}
-  volumes:
-  - name: data
-    emptyDir: {}
   {{- end }}
 {{- end }}
