@@ -1,0 +1,27 @@
+# Copyright © 2025 Zubin Qayam — ZQAutoNXG Powered by ZQ AI LOGIC
+# Licensed under the Apache License, Version 2.0
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'zqautonxg'
+    environment: 'production'
+
+scrape_configs:
+  - job_name: 'zqautonxg-backend'
+    static_configs:
+      - targets: ['backend:8000']
+        labels:
+          service: 'backend'
+          component: 'api'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'monitoring'
+          component: 'prometheus'

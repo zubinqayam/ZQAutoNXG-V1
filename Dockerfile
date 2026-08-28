@@ -2,13 +2,13 @@
 # Copyright © 2025 Zubin Qayam — ZQAutoNXG Powered by ZQ AI LOGIC™
 # Licensed under the Apache License, Version 2.0
 
-FROM python:3.11-slim AS builder
+FROM python:3.11-slim-bookworm AS builder
 
 WORKDIR /build
 COPY backend/requirements.txt .
 RUN pip install --user --no-cache-dir -r requirements.txt
 
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 # Non-root user for security
 RUN useradd -m -u 1001 zqautonxg
