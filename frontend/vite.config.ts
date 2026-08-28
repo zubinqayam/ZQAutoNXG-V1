@@ -2,6 +2,11 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const backendProxy = {
+  target: 'http://localhost:8000',
+  changeOrigin: true,
+}
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -14,13 +19,13 @@ export default defineConfig({
     port: 1420,
     strictPort: true,
     proxy: {
-      '/health': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-      },
+      '/health': backendProxy,
+      '/readyz': backendProxy,
+      '/status': backendProxy,
+      '/version': backendProxy,
+      '/metrics': backendProxy,
       '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
+        ...backendProxy,
         ws: true,
       },
     },
