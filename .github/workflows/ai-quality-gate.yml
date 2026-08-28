@@ -1,0 +1,120 @@
+name: AI Quality Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  ai-quality-gate:
+    name: AI Quality Gate Review
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute filtered PR diff
+        id: diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff "$BASE_SHA".."$HEAD_SHA" \
+            -- \
+            ':!node_modules/' \
+            ':!dist/' \
+            ':!build/' \
+            ':!.next/' \
+            ':!coverage/' \
+            ':!__pycache__/' \
+            ':!vendor/' \
+            ':!generated/' \
+            ':!*.min.js' \
+            ':!*.map' \
+            ':!*.lock' \
+            ':!*.log' \
+            ':!*.csv' \
+            ':!*.xlsx' \
+            ':!*.pdf' \
+            ':!*.exe' \
+            ':!*.bin' \
+            ':!*.so' \
+            ':!*.dylib' \
+            ':!*.dll' \
+            > /tmp/filtered.diff
+          echo "diff_path=/tmp/filtered.diff" >> "$GITHUB_OUTPUT"
+          echo "Filtered diff size: $(wc -c < /tmp/filtered.diff) bytes"
+
+      - name: Install gitleaks
+        run: |
+          GITLEAKS_VERSION="8.18.3"
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      - name: Secret scanning with gitleaks
+        run: |
+          gitleaks detect \
+            --source /tmp/filtered.diff \
+            --no-git \
+            --redact \
+            --exit-code 1 \
+            --report-format json \
+            --report-path /tmp/gitleaks-report.json \
+            || (echo "::error::Gitleaks found secrets in the diff — merge blocked." && exit 1)
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: |
+          pip install anthropic pyyaml
+
+      - name: Run AI Quality Gate reviewer
+        id: ai_review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DIFF_PATH: /tmp/filtered.diff
+          POLICY_PATH: .github/ai-quality-gate.yml
+          PROMPT_PATH: .github/ai-review-prompt.md
+          FINDINGS_PATH: /tmp/ai-findings.json
+        run: |
+          python .github/scripts/run_ai_quality_gate.py
+          echo "findings_path=/tmp/ai-findings.json" >> "$GITHUB_OUTPUT"
+
+      - name: Post findings as PR comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const findingsPath = '/tmp/ai-findings.json';
+            if (!fs.existsSync(findingsPath)) {
+              console.log('No findings file found — skipping comment.');
+              return;
+            }
+            const raw = fs.readFileSync(findingsPath, 'utf8');
+            let data;
+            try {
+              data = JSON.parse(raw);
+            } catch (e) {
+              console.log('Could not parse findings JSON:', e.message);
+              return;
+            }
+            const comment = data.markdown_comment || '*AI Quality Gate produced no structured output.*';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: comment
+            });

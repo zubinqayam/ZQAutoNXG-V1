@@ -60,3 +60,20 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
+# Local intelligence storage and snapshots
+/snapshots/
+/local-intelligence/
+/credentials/
+
+# Secret / credential files
+*.pem
+*.key
+*.p12
+*.pfx
+.env.*
+!.env.example
+
+# Generated data
+*.generated.*
+/generated/
+
