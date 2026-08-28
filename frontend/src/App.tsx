@@ -1,6 +1,10 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
+const DEFAULT_API_URL =
+  window.location.protocol === 'http:' || window.location.protocol === 'https:'
+    ? window.location.origin
+    : 'http://localhost:8000'
+const API_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/$/, '')
 
 type Health = {
   status: string
