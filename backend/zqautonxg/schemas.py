@@ -1,11 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 from datetime import datetime
 
 class FlowBase(BaseModel):
     name: str
     description: Optional[str] = None
-    definition: Dict[str, Any] = {}
+    definition: Dict[str, Any] = Field(default_factory=dict)
 
 class FlowCreate(FlowBase):
     pass
