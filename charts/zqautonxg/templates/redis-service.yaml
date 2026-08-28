@@ -1,0 +1,24 @@
+{{/*
+Copyright © 2025 Zubin Qayam — ZQAutoNXG Powered by ZQ AI LOGIC
+Licensed under the Apache License, Version 2.0
+*/}}
+{{- if .Values.redis.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "zqautonxg.fullname" . }}-redis
+  labels:
+    {{- include "zqautonxg.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cache
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: {{ .Values.redis.port }}
+      targetPort: redis
+      protocol: TCP
+      name: redis
+  selector:
+    {{- include "zqautonxg.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: cache
+{{- end }}

@@ -1,0 +1,19 @@
+# Copyright © 2025 Zubin Qayam — ZQAutoNXG Powered by ZQ AI LOGIC
+# Licensed under the Apache License, Version 2.0
+
+apiVersion: v2
+name: zqautonxg
+description: Next-Generation eXtended Automation Platform - Powered by ZQ AI LOGIC™
+type: application
+version: 1.0.0
+appVersion: "6.0.0"
+keywords:
+  - automation
+  - ai
+  - orchestration
+  - zqautonxg
+maintainers:
+  - name: Zubin Qayam
+    email: zubin.qayam@outlook.com
+sources:
+  - https://github.com/zubinqayam/ZQAutoNXG-V1

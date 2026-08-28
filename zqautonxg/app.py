@@ -13,14 +13,11 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.staticfiles import StaticFiles
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, generate_latest
 from starlette.responses import FileResponse, Response
 
-
-# Import API routers
 from zqautonxg.api.v1 import logs, network, nodes, workflows
-
-# Import models
 from zqautonxg.models.status import (
     ComponentCheck,
     ComponentStatus,
@@ -31,7 +28,6 @@ from zqautonxg.models.status import (
     StatusResponse,
 )
 
-# ZQAutoNXG Configuration
 APP_NAME = os.getenv("APP_NAME", "ZQAutoNXG")
 APP_VERSION = "6.0.0"
 APP_BRAND = "Powered by ZQ AI LOGIC™"
@@ -43,20 +39,17 @@ GIT_COMMIT = (
     or "unknown"
 )
 
-# Initialize logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger("zqautonxg")
-
-# Application start time for uptime calculation
 APP_START_TIME = time.time()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Start and stop application-owned background tasks."""
+    """Own and cleanly stop application background tasks."""
     sample_log_task = asyncio.create_task(logs.generate_sample_logs())
     logger.info("ZQAutoNXG platform started successfully")
     try:
@@ -68,7 +61,6 @@ async def lifespan(app: FastAPI):
         logger.info("ZQAutoNXG platform shutting down")
 
 
-# Create FastAPI application
 app = FastAPI(
     title=APP_NAME,
     version=APP_VERSION,
@@ -79,16 +71,17 @@ app = FastAPI(
     },
     license_info={
         "name": "Apache License 2.0",
-        "url": "http://www.apache.org/licenses/LICENSE-2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0",
     },
     lifespan=lifespan,
 )
 
-# Add CORS middleware
 cors_origins = [
     origin.strip()
     for origin in os.getenv(
-        "CORS_ORIGINS", "http://localhost:3000,http://localhost:8080"
+        "CORS_ORIGINS",
+        "http://localhost:3000,http://localhost:5173,http://localhost:8080,"
+        "http://localhost:1420,http://127.0.0.1:1420,tauri://localhost",
     ).split(",")
     if origin.strip()
 ]
@@ -100,41 +93,63 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Add GZip middleware for response compression
-# Compressing responses > 1000 bytes significantly reduces network bandwidth usage
-# and improves client response times, especially for the /metrics endpoint
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# Include API routers
+# Authoritative enterprise API surface.
 app.include_router(workflows.router, prefix="/api/v1")
 app.include_router(nodes.router, prefix="/api/v1")
 app.include_router(logs.router, prefix="/api/v1")
 app.include_router(network.router, prefix="/api/v1")
 
-# Serve frontend static files if available
-frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
-if os.path.exists(frontend_path):
-    # Serve index.html at /ui
-    @app.get("/ui")
-    async def serve_ui():
-        """Serve the web interface."""
-        index_path = os.path.join(frontend_path, "index.html")
-        if os.path.exists(index_path):
-            return FileResponse(index_path)
-        return {"message": "Frontend not available"}
-    
-    logger.info(f"Frontend available at /ui")
+# Production UI is always the compiled Vite application. Source Vite entrypoints
+# are never served by FastAPI because the backend does not expose /src/* modules.
+repository_root = os.path.dirname(os.path.dirname(__file__))
+frontend_dist_path = os.path.join(repository_root, "frontend", "dist")
+frontend_assets_path = os.path.join(frontend_dist_path, "assets")
+frontend_index_path = os.path.join(frontend_dist_path, "index.html")
+
+if os.path.isdir(frontend_assets_path):
+    app.mount(
+        "/assets",
+        StaticFiles(directory=frontend_assets_path),
+        name="frontend-assets",
+    )
 
 
-# Prometheus metrics
-REQUEST_COUNT = Counter('zqautonxg_requests_total', 'Total requests', ['method', 'endpoint'])
-HEALTH_CHECKS = Counter('zqautonxg_health_checks_total', 'Health check requests')
+def _frontend_index() -> str | None:
+    return frontend_index_path if os.path.isfile(frontend_index_path) else None
 
-# Pre-initialize metric labels to avoid map lookup overhead on every request
+
+@app.get("/ui", include_in_schema=False)
+async def serve_ui():
+    """Serve the compiled production React control plane when available."""
+    index_path = _frontend_index()
+    if index_path:
+        return FileResponse(index_path)
+    return {"platform": APP_NAME, "message": "Frontend is not built"}
+
+
+@app.get("/ui/{client_path:path}", include_in_schema=False)
+async def serve_ui_route(client_path: str):
+    """Support client-side routes by returning the compiled SPA index."""
+    del client_path
+    index_path = _frontend_index()
+    if index_path:
+        return FileResponse(index_path)
+    return {"platform": APP_NAME, "message": "Frontend is not built"}
+
+
+REQUEST_COUNT = Counter(
+    "zqautonxg_requests_total",
+    "Total requests",
+    ["method", "endpoint"],
+)
+HEALTH_CHECKS = Counter(
+    "zqautonxg_health_checks_total",
+    "Health check requests",
+)
 ROOT_REQUEST_METRIC = REQUEST_COUNT.labels(method="GET", endpoint="root")
 
-# Pre-compute static response parts to avoid allocation on every request
 ROOT_RESPONSE_TEMPLATE: dict[str, Any] = {
     "platform": APP_NAME,
     "version": APP_VERSION,
@@ -149,19 +164,19 @@ ROOT_RESPONSE_TEMPLATE: dict[str, Any] = {
         "Extended Reality Integration",
         "Global-Scale Orchestration",
         "Next-Generation Algorithms",
-        "Proprietary ZQ AI LOGIC™"
-    ]
+        "Proprietary ZQ AI LOGIC™",
+    ],
 }
 
-@app.get("/")
-async def root():
-    """Root endpoint with ZQAutoNXG information"""
-    ROOT_REQUEST_METRIC.inc()
-    logger.info("Root endpoint accessed")
 
+@app.get("/")
+async def root() -> dict[str, Any]:
+    """Return platform identity and capability metadata."""
+    ROOT_REQUEST_METRIC.inc()
     response = ROOT_RESPONSE_TEMPLATE.copy()
     response["timestamp"] = time.time()
     return response
+
 
 @app.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
@@ -190,19 +205,17 @@ async def readiness() -> dict[str, Any]:
 
 
 @app.get("/metrics")
-async def metrics():
-    """Prometheus metrics endpoint"""
-    data = generate_latest()
-    return Response(content=data, media_type=CONTENT_TYPE_LATEST)
+async def metrics() -> Response:
+    """Expose Prometheus metrics."""
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
 
 @app.get("/status", response_model=StatusResponse)
 async def status() -> StatusResponse:
-    """Detailed status information with comprehensive health checks"""
+    """Return runtime status without claiming unprobed capabilities are ready."""
     now = datetime.now(timezone.utc)
     uptime = time.time() - APP_START_TIME
-    
-    # Report unprobed capability modules honestly. Operators can mark them
-    # ready only after wiring real probes through ZQ_COMPONENTS_READY.
+
     component_state = (
         ComponentStatus.READY
         if os.getenv("ZQ_COMPONENTS_READY", "").lower() in {"1", "true", "yes"}
@@ -269,22 +282,18 @@ async def status() -> StatusResponse:
         ),
     }
 
-    # Determine overall status based on components (single pass)
     overall_status = OverallStatus.HEALTHY
-    degraded_components = []
-    unavailable_components = []
-    
-    for name, check in components.items():
-        if check.status == ComponentStatus.UNAVAILABLE:
-            unavailable_components.append(name)
-        elif check.status == ComponentStatus.DEGRADED:
-            degraded_components.append(name)
-    
-    if unavailable_components:
+    if any(
+        check.status == ComponentStatus.UNAVAILABLE
+        for check in components.values()
+    ):
         overall_status = OverallStatus.UNHEALTHY
-    elif degraded_components:
+    elif any(
+        check.status == ComponentStatus.DEGRADED
+        for check in components.values()
+    ):
         overall_status = OverallStatus.DEGRADED
-    
+
     return StatusResponse(
         status=overall_status,
         platform=APP_NAME,
@@ -295,12 +304,13 @@ async def status() -> StatusResponse:
         timestamp=now,
         uptime_seconds=uptime,
         components=components,
-        integrations=integrations
+        integrations=integrations,
     )
 
+
 @app.get("/version")
-async def version():
-    """Version information"""
+async def version() -> dict[str, str]:
+    """Return build and source revision metadata."""
     return {
         "platform": APP_NAME,
         "version": APP_VERSION,
@@ -308,15 +318,16 @@ async def version():
         "brand": APP_BRAND,
         "license": "Apache License 2.0",
         "build_date": os.getenv("BUILD_DATE", "unknown"),
-        "git_commit": GIT_COMMIT
+        "git_commit": GIT_COMMIT,
     }
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         app,
         host=os.getenv("HOST", "0.0.0.0"),
         port=int(os.getenv("PORT", 8000)),
-        log_level="info"
+        log_level="info",
     )

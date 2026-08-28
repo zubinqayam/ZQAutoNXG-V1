@@ -1,0 +1,147 @@
+name: AI Quality Gate
+
+on:
+  pull_request:
+    branches: [main, master]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ai-quality-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  filter-diff:
+    name: Filter changed files (branch + trash filtering)
+    runs-on: ubuntu-latest
+    outputs:
+      changed_files: ${{ steps.filter.outputs.changed_files }}
+      has_relevant_changes: ${{ steps.filter.outputs.has_relevant_changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute filtered diff
+        id: filter
+        run: |
+          set -euo pipefail
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > all_changed.txt || true
+
+          grep -Ev '(^|/)(node_modules|dist|build|\.next|coverage|__pycache__|\.venv|venv|\.git|\.cache)/' all_changed.txt \
+            | grep -Ev '\.(min\.js|map|lock|log|csv|xlsx|pdf|png|jpg|jpeg|gif|svg|ico|zip|tar|gz|pyc)$' \
+            | grep -Ev '^(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|poetry\.lock|uv\.lock)$' \
+            > filtered_changed.txt || true
+
+          echo "Filtered changed files:"
+          cat filtered_changed.txt || true
+
+          if [ -s filtered_changed.txt ]; then
+            echo "has_relevant_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_relevant_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          {
+            echo 'changed_files<<EOF'
+            cat filtered_changed.txt
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload filtered diff artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: filtered-diff
+          path: filtered_changed.txt
+          retention-days: 7
+
+  secret-scan:
+    name: Secret scan (redaction gate)
+    needs: filter-diff
+    if: needs.filter-diff.outputs.has_relevant_changes == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "true"
+
+  ai-quality-review:
+    name: AI architecture and completeness review
+    needs: [filter-diff, secret-scan]
+    if: needs.filter-diff.outputs.has_relevant_changes == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download filtered diff
+        uses: actions/download-artifact@v4
+        with:
+          name: filtered-diff
+
+      - name: Build scoped diff content
+        run: |
+          set -euo pipefail
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          : > scoped.diff
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            git diff "$BASE_SHA" "$HEAD_SHA" -- "$f" >> scoped.diff || true
+          done < filtered_changed.txt
+          wc -l scoped.diff
+
+      - name: Run Gemini AI quality gate
+        id: ai_review
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          POLICY_FILE: .github/ai-quality-gate.yml
+          PROMPT_FILE: .github/ai-review-prompt.md
+        run: |
+          set -euo pipefail
+          if [ -z "${GEMINI_API_KEY:-}" ]; then
+            echo "::warning::GEMINI_API_KEY secret not set. Skipping Gemini AI review, only automated checks apply."
+            echo "AI review skipped: no API key configured." > ai_findings.md
+            exit 0
+          fi
+          python .github/scripts/run_ai_quality_gate.py \
+            --diff scoped.diff \
+            --policy "$POLICY_FILE" \
+            --prompt "$PROMPT_FILE" \
+            --output ai_findings.md
+
+      - name: Post AI findings as PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.existsSync('ai_findings.md')
+              ? fs.readFileSync('ai_findings.md', 'utf8')
+              : 'No AI findings generated.';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## 🤖 AI Quality Gate Findings\n\n${body}`
+            });
+
+      - name: Enforce blocking findings
+        run: |
+          if grep -q 'CRITICAL:' ai_findings.md 2>/dev/null; then
+            echo "::error::Critical AI Quality Gate findings detected. Blocking merge."
+            exit 1
+          fi
+          echo "No blocking findings."

@@ -1,0 +1,40 @@
+{
+  "build": {
+    "beforeDevCommand": "npm --prefix ../frontend run dev",
+    "beforeBuildCommand": "npm --prefix ../frontend run build",
+    "devPath": "http://localhost:1420",
+    "distDir": "../frontend/dist",
+    "withGlobalTauri": true
+  },
+  "package": {
+    "productName": "ZQAutoNXG Desktop",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      }
+    },
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "identifier": "com.zqautonxg.desktop",
+      "icon": []
+    },
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:8000 ws://localhost:8000; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "resizable": true,
+        "title": "ZQAutoNXG",
+        "width": 1200,
+        "height": 800
+      }
+    ]
+  }
+}

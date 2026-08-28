@@ -1,0 +1,21 @@
+{{/*
+Copyright © 2025 Zubin Qayam — ZQAutoNXG Powered by ZQ AI LOGIC
+Licensed under the Apache License, Version 2.0
+*/}}
+{{- if and .Values.prometheus.enabled .Values.prometheus.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "zqautonxg.fullname" . }}
+  labels:
+    {{- include "zqautonxg.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "zqautonxg.selectorLabels" . | nindent 6 }}
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: {{ .Values.prometheus.serviceMonitor.interval }}
+    scrapeTimeout: {{ .Values.prometheus.serviceMonitor.scrapeTimeout }}
+{{- end }}

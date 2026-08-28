@@ -1,0 +1,129 @@
+name: Platform Validation
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: React Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.20.2"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Audit production dependencies
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  desktop:
+    name: Tauri Desktop Compile
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.20.2"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build frontend assets
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+      - name: Install Tauri Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.0-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+      - name: Compile desktop shell
+        run: cargo check --manifest-path src-tauri/Cargo.toml --features custom-protocol
+
+  helm:
+    name: Helm Chart
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.15.4
+      - name: Lint default chart
+        run: helm lint ./charts/zqautonxg
+      - name: Render default chart
+        run: helm template zqautonxg ./charts/zqautonxg > /tmp/zqautonxg-default.yaml
+      - name: Render ephemeral PostgreSQL and Redis profile
+        run: |
+          helm template zqautonxg ./charts/zqautonxg \
+            --set postgres.enabled=true \
+            --set postgres.password=ci-placeholder \
+            --set postgres.persistence.enabled=false \
+            --set redis.enabled=true \
+            --set redis.password=ci-placeholder \
+            --set redis.persistence.enabled=false \
+            > /tmp/zqautonxg-ephemeral.yaml
+          test -s /tmp/zqautonxg-ephemeral.yaml
+          grep -q 'kind: StatefulSet' /tmp/zqautonxg-ephemeral.yaml
+          grep -q 'emptyDir: {}' /tmp/zqautonxg-ephemeral.yaml
+      - name: Reject enabled Redis without a password
+        run: |
+          if helm template zqautonxg ./charts/zqautonxg --set redis.enabled=true >/tmp/redis-unsafe.yaml 2>/tmp/redis-unsafe.err; then
+            echo "Redis rendered without a required password"
+            exit 1
+          fi
+          grep -q 'redis.password must be set' /tmp/redis-unsafe.err
+      - name: Render enterprise chart with CI-only credentials
+        run: |
+          helm template zqautonxg ./charts/zqautonxg \
+            -f ./charts/zqautonxg/values-enterprise.yaml \
+            --set postgres.password=ci-placeholder \
+            --set redis.password=ci-placeholder \
+            --set grafana.adminPassword=ci-placeholder \
+            > /tmp/zqautonxg-enterprise.yaml
+          test -s /tmp/zqautonxg-enterprise.yaml
+          if grep -q 'name: zqautonxg-secrets' /tmp/zqautonxg-enterprise.yaml; then
+            echo "Enterprise chart still references an undeclared fixed-name secret"
+            exit 1
+          fi
+
+  compose:
+    name: Docker Compose Contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose model
+        env:
+          POSTGRES_PASSWORD: ci-placeholder
+          REDIS_PASSWORD: ci-placeholder
+          GRAFANA_ADMIN_PASSWORD: ci-placeholder
+        run: docker compose config --quiet

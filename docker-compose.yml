@@ -1,10 +1,7 @@
 # Copyright © 2025 Zubin Qayam — ZQAutoNXG Powered by ZQ AI LOGIC
 # Licensed under the Apache License, Version 2.0
 
-version: '3.8'
-
 services:
-  # Backend API Service
   backend:
     build:
       context: .
@@ -13,20 +10,21 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - APP_NAME=ZQAutoNXG
-      - HOST=0.0.0.0
-      - PORT=8000
-      - DATABASE_URL=postgresql://zqadmin:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/zqautonxg
-      - REDIS_URL=redis://redis:6379/0
-      - CORS_ORIGINS=http://localhost:3000,http://localhost:8080
-      - LOG_LEVEL=INFO
+      APP_NAME: ZQAutoNXG
+      HOST: 0.0.0.0
+      PORT: "8000"
+      DATABASE_URL: postgresql://zqadmin:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/zqautonxg
+      REDIS_URL: redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}@redis:6379/0
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://localhost:8080,http://localhost:1420
+      LOG_LEVEL: INFO
+      CONTAINER_RUNTIME: docker-compose
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -35,20 +33,16 @@ services:
       - zqautonxg-network
     restart: unless-stopped
 
-  # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
     container_name: zqautonxg-postgres
     environment:
-      - POSTGRES_DB=zqautonxg
-      - POSTGRES_USER=zqadmin
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-      - POSTGRES_INITDB_ARGS=--encoding=UTF-8
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: zqautonxg
+      POSTGRES_USER: zqadmin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_INITDB_ARGS: --encoding=UTF-8
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U zqadmin -d zqautonxg"]
       interval: 10s
@@ -58,17 +52,16 @@ services:
       - zqautonxg-network
     restart: unless-stopped
 
-  # Redis Cache
   redis:
     image: redis:7-alpine
     container_name: zqautonxg-redis
-    command: redis-server --appendonly yes
-    ports:
-      - "6379:6379"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -76,15 +69,12 @@ services:
       - zqautonxg-network
     restart: unless-stopped
 
-  # Prometheus Monitoring
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.48.1
     container_name: zqautonxg-prometheus
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
     ports:
       - "9090:9090"
     volumes:
@@ -94,14 +84,13 @@ services:
       - zqautonxg-network
     restart: unless-stopped
 
-  # Grafana Dashboard
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.2.3
     container_name: zqautonxg-grafana
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
-      - GF_USERS_ALLOW_SIGN_UP=false
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
     ports:
       - "3001:3000"
     volumes:
@@ -116,13 +105,9 @@ services:
 
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
   prometheus_data:
-    driver: local
   grafana_data:
-    driver: local
 
 networks:
   zqautonxg-network:
