@@ -93,8 +93,8 @@ outcomes).
 
 ## 10. Secrets policy
 
-- AI provider keys are stored only as GitHub Actions repository secrets
-  (e.g. `AI_QUALITY_GATE_API_KEY`), never in Notion, YAML, `.env.example`,
+- Gemini API keys are stored only as GitHub Actions repository secrets
+  (e.g. `GEMINI_API_KEY`), never in Notion, YAML, `.env.example`,
   or code.
 - SSH **deploy keys** (Settings → Deploy keys) are for pulling code onto a
   deployment host only. They are unrelated to AI provider credentials and

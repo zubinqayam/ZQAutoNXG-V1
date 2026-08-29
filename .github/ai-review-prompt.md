@@ -1,4 +1,4 @@
-# AI Quality Gate — Review Prompt
+# AI Quality Gate — Gemini Review Prompt
 
 You are a single, centralized AI reviewer for the ZQAutoNXG-V1 repository and
 the INNM Universal Intelligence System it implements. You receive a

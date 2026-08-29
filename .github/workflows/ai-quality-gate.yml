@@ -8,7 +8,6 @@ on:
 permissions:
   contents: read
   pull-requests: write
-  issues: write
 
 concurrency:
   group: ai-quality-gate-${{ github.event.pull_request.number }}
@@ -105,16 +104,16 @@ jobs:
           done < filtered_changed.txt
           wc -l scoped.diff
 
-      - name: Run AI quality gate
+      - name: Run Gemini AI quality gate
         id: ai_review
         env:
-          AI_API_KEY: ${{ secrets.AI_QUALITY_GATE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           POLICY_FILE: .github/ai-quality-gate.yml
           PROMPT_FILE: .github/ai-review-prompt.md
         run: |
           set -euo pipefail
-          if [ -z "${AI_API_KEY:-}" ]; then
-            echo "::warning::AI_QUALITY_GATE_API_KEY secret not set. Skipping AI review, only automated checks apply."
+          if [ -z "${GEMINI_API_KEY:-}" ]; then
+            echo "::warning::GEMINI_API_KEY secret not set. Skipping Gemini AI review, only automated checks apply."
             echo "AI review skipped: no API key configured." > ai_findings.md
             exit 0
           fi
