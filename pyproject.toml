@@ -15,11 +15,11 @@ authors = [{name = "Zubin Qayam", email = "zubin.qayam@outlook.com"}]
 license = {text = "Apache-2.0"}
 requires-python = ">=3.11"
 keywords = [
-    "zqautonxg", 
-    "automation", 
-    "ai", 
-    "next-generation", 
-    "xr", 
+    "zqautonxg",
+    "automation",
+    "ai",
+    "next-generation",
+    "xr",
     "extended-reality",
     "zq-ai-logic",
     "enterprise",
@@ -51,14 +51,11 @@ Issues = "https://github.com/zubinqayam/ZQAutoNXG-V1/issues"
 Documentation = "https://github.com/zubinqayam/ZQAutoNXG-V1/blob/main/README.md"
 Changelog = "https://github.com/zubinqayam/ZQAutoNXG-V1/releases"
 
-[project.scripts]
-zqautonxg = "zqautonxg.app:main"
-
 [tool.setuptools]
-packages = {find = {where = ["."], exclude = ["tests*"]}}  # Dynamic package discovery
+packages = {find = {where = ["backend"], exclude = ["tests*"]}}
 
 [tool.setuptools.dynamic]
-dependencies = {file = ["requirements.txt"]}
+dependencies = {file = ["backend/requirements.txt"]}
 
 # Development and Testing Tools Configuration
 
@@ -66,18 +63,18 @@ dependencies = {file = ["requirements.txt"]}
 target-version = "py311"
 line-length = 88
 select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
-    "C4", # flake8-comprehensions
-    "UP", # pyupgrade
+    "E",
+    "W",
+    "F",
+    "I",
+    "B",
+    "C4",
+    "UP",
 ]
 ignore = [
-    "E501",  # line too long, handled by black
-    "B008",  # do not perform function calls in argument defaults
-    "C901",  # too complex
+    "E501",
+    "B008",
+    "C901",
 ]
 
 [tool.ruff.per-file-ignores]
@@ -89,7 +86,6 @@ line-length = 88
 include = '\.pyi?$'
 extend-exclude = '''
 /(
-  # directories
   \.eggs
   | \.git
   | \.hg
@@ -120,7 +116,7 @@ strict_equality = true
 minversion = "6.0"
 addopts = "-ra -q --strict-markers"
 testpaths = [
-    "tests",
+    "backend/tests",
 ]
 python_files = [
     "test_*.py",
@@ -139,9 +135,9 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["zqautonxg"]
+source = ["backend/zqautonxg"]
 omit = [
-    "tests/*",
+    "backend/tests/*",
     "*/__init__.py",
 ]
 
@@ -160,4 +156,4 @@ exclude_lines = [
 ]
 
 [tool.vercel]
-entrypoint = "zqautonxg.app:app"
+entrypoint = "backend.zqautonxg.main:app"
